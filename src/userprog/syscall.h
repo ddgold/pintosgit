@@ -3,4 +3,10 @@
 
 void syscall_init (void);
 
+
+
+int wait (pid_t);
+
+int write (int, const void *, unsigned);
+
 #endif /* userprog/syscall.h */

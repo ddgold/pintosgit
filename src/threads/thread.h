@@ -93,6 +93,14 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    /* ADDED */
+    struct list open_files;             /* Lists Thread's Open Files */
+    struct list children;               /* Lists thread's children */
+    tid_t parent;                       /* Parent's tid */
+    int exit_status;                    /* The status */
+    
+    int fd_count;                       /* Keeps track of the next fd */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
