@@ -47,7 +47,6 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
-  thread_current()->parent = tid;
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   
@@ -75,8 +74,6 @@ start_process (void *file_name_)
   if (!success) 
     thread_exit ();
 
-  /* ADDED */
-  struct thread *t = thread_current();
   
 
   /* Start the user process by simulating a return from an
@@ -539,8 +536,7 @@ setup_stack (void **esp, char **arg_holder, int arg_count)
         *int_pointer = 0;
         
         // Execute hex_dump
-        hex_dump((int) *esp, *esp, (char *) PHYS_BASE - (char *) *esp, 1);
-        
+        //hex_dump((int) *esp, *esp, (char *) PHYS_BASE - (char *) *esp, 1);
         // Deallocate pointer_holder
         palloc_free_page (pointer_holder);
         /* End ADDED */
