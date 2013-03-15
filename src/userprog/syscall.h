@@ -4,6 +4,11 @@
 void syscall_init (void);
 
 
+void halt (void);
+
+void exit (int);
+
+int open (const char *);
 
 int wait (pid_t);
 

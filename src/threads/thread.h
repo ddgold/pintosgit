@@ -97,7 +97,6 @@ struct thread
     struct list open_files;             /* Lists Thread's Open Files */
     struct list children;               /* Lists thread's children */
     tid_t parent;                       /* Parent's tid */
-    int exit_status;                    /* The status */
     
     int fd_count;                       /* Keeps track of the next fd */
 

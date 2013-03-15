@@ -17,7 +17,8 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  hex_dump((int) f->esp, f->esp, (char *) PHYS_BASE - (char *) f->esp, 1);
+  //hex_dump((int) f->esp, f->esp, (char *) PHYS_BASE - (char *) f->esp, 1);
+  
   int call_number = *(int *) f->esp;
   void *arg0 = f->esp + 4;
   void *arg1 = f->esp + 8;
@@ -25,23 +26,96 @@ syscall_handler (struct intr_frame *f UNUSED)
   
   switch (call_number)
   {
+    
+    case SYS_HALT:
+      halt ();
+      break;
+    case SYS_EXIT:
+      exit (*(int *) arg0);
+      break;
+    /*
+    case SYS_EXEC:
+      exec ((char *) arg0);
+      break;
+    case SYS_WAIT:
+      wait (*(pid_t *) arg0);
+      break;
+    case SYS_CREATE:
+      create ((char *) arg0, *(unsigned *) arg1);
+      break;
+    case SYS_REMOVE:
+      remove ((char *) arg0);
+      break;
+    */
+    case SYS_OPEN:
+      open (*(int *) arg0);
+      break;
     case SYS_WRITE:
       write (*(int *) arg0, arg1, *(unsigned *) arg2);
       break;
     default:
-      printf("system call!\n");
+      //printf("system call!\n");
       thread_exit();
       break;      
   }
   
-  thread_exit(); 
+  //thread_exit(); 
+}
+
+
+// ----
+// halt
+// ----
+void halt (void)
+{
+  shutdown_power_off ();
+}
+
+// ----
+// exit
+// ----
+void exit (int status)
+{
+  thread_exit ();
 }
 
 /*
+pid_t exec (const char *cmd_line)
+{
+  return -1;
+}
+
+int wait (pid_t pid)
+{
+  return -1;
+}
+
+
+
+int wait (pid_t pid)
+{
+  return process_wait(pid);  
+}
+
+bool create (const char *file, unsigned initial_size)
+{
+  
+  return false;
+}
+
+
+bool remove (const char *file)
+{
+  return false;
+}
+*/
+
+
 int open (const char *file)
 {
+  
   struct thread *t = thread_current();
-  struct file *f = open_file(file);
+  struct file *f = filesys_open(file);
   if (f != NULL)
   {
     list_push_back(&t->open_files, &f->open_file);
@@ -54,40 +128,59 @@ int open (const char *file)
     return -1;
   }
 }
-*/
-/*
-int wait (pid_t pid)
-{
-  return process_wait(pid);  
-}
-*/
 
 int write (int fd, const void *buffer, unsigned size)
 {
-  struct thread *t = thread_current();
-  struct file *f = list_entry (list_begin (&t->open_files), struct file, open_file);
-  if (fd == 0) // stdin
+  if (fd == 0) // Write to stdin
   {
     return 0;
   }
-  else if (fd == 1) // stdout
+  else if (fd == 1) // Write to stdout
   {
     putbuf(*(int *)buffer, size);
     return (int) size;
   }
-  else // file
+  else // Write to file
   {
-    while ((int) &f->fd != fd);
-    { 
-      printf("this is looping: %d\n", &f->fd);
+    struct thread *t = thread_current();
+    struct file *f = list_entry (list_begin (&t->open_files), struct file, open_file);
+  
+    do
+    {
+      // Is open_files empty?
       if( &f->open_file == list_tail(&t->open_files) )
       {
         return -1;
       }
-      f = list_entry (list_next(&f->open_file), struct file, open_file);
-    }
+      
+      // Is f correct file?
+      if ( (int) &f->fd == fd )
+      {
+        return (int) file_write(f, buffer, size);
+      }
+      f = list_entry (list_next(&f->open_file), struct file, open_file);    
+    } while ((int) &f->fd != fd);
   }
-  //printf("testing: %x\n", *(int *)buffer);
   
-  //return (int) file_write(f, buffer, size);
+  return -1;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

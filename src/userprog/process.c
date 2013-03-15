@@ -536,8 +536,9 @@ setup_stack (void **esp, char **arg_holder, int arg_count)
         *int_pointer = 0;
         
         // Execute hex_dump
-        hex_dump((int) *esp, *esp, (char *) PHYS_BASE - (char *) *esp, 1);
-        printf("\n");
+        //hex_dump((int) *esp, *esp, (char *) PHYS_BASE - (char *) *esp, 1);
+        //printf("\n");
+        
         // Deallocate pointer_holder
         palloc_free_page (pointer_holder);
         /* End ADDED */
