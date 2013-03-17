@@ -98,6 +98,31 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  struct thread *parent = thread_current();
+  struct child temp = list_entry (list_begin (&parent->children), struct child, elem);
+   
+  do
+  {
+    if( &temp->elem == list_tail(&parent->children) )
+    {
+      return -1;
+    }
+    
+    if ( &temp->child == child_tid )
+    {
+      // Check if child had been waited on
+      if (&temp->reaped)
+      {
+        return -1;
+      }
+      
+      // Wait
+            
+      
+    }
+    temp = list_entry (list_next(&parent->children), struct child, elem);    
+  } while ( &temp->child != child_tid );
+  
   return -1;
 }
 
