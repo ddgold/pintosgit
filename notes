@@ -1,0 +1,10 @@
+NOTES:
+
+get exit status from stack. put it in a thread struct. thread exit.  change thread exit to do something with status?
+
+a lock for file writing
+
+do not return in system call handler. put what we return in f->eax.
+
+in the wait system call only call process_wait() and do the rest in there
+
