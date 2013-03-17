@@ -1,16 +1,23 @@
 #include "userprog/syscall.h"
+#include "lib/user/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include <filesys/file.h>
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
+
+struct lock write_lock;
+struct lock exec_lock;
 
 void
 syscall_init (void) 
 {
+  lock_init(&write_lock);
+  lock_init(&exec_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -33,13 +40,13 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXIT:
       exit (*(int *) arg0);
       break;
-    /*
     case SYS_EXEC:
-      exec ((char *) arg0);
+      f->eax = exec ((char *) arg0);
       break;
     case SYS_WAIT:
       wait (*(pid_t *) arg0);
       break;
+    /*
     case SYS_CREATE:
       create ((char *) arg0, *(unsigned *) arg1);
       break;
@@ -48,13 +55,14 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     */
     case SYS_OPEN:
-      open (*(int *) arg0);
+      f->eax = open (*(int *) arg0);
       break;
+   
     case SYS_WRITE:
-      write (*(int *) arg0, arg1, *(unsigned *) arg2);
+      f->eax = write (*(int *) arg0, arg1, *(unsigned *) arg2);
       break;
     default:
-      //printf("system call!\n");
+      printf("system call!\n");
       thread_exit();
       break;      
   }
@@ -76,22 +84,45 @@ void halt (void)
 // ----
 void exit (int status)
 {
+  thread_current()->exit_status = status;
   thread_exit ();
 }
 
-/*
-pid_t exec (const char *cmd_line)
+// ----
+// exec
+// ----
+pid_t exec (const char *cmd_line) 
 {
-  return -1;
+  lock_acquire(&exec_lock);  
+  tid_t pid = process_execute (cmd_line);
+    
+  // If exec successful
+  if (pid != -1)
+  {
+    struct thread *parent = thread_current();
+    
+    struct child *temp;
+    temp->child = pid;
+    temp->parent = parent->tid;
+    temp->reaped = FALSE;
+    
+    list_push_back(&parent->children, &temp->elem);
+  }
+  lock_release(&exec_lock);
+  
+  return pid;
 }
+
 
 int wait (pid_t pid)
 {
+  process_wait(pid);
+  
   return -1;
 }
 
 
-
+/*
 int wait (pid_t pid)
 {
   return process_wait(pid);  
@@ -142,6 +173,7 @@ int write (int fd, const void *buffer, unsigned size)
   }
   else // Write to file
   {
+    lock_acquire(&write_lock);
     struct thread *t = thread_current();
     struct file *f = list_entry (list_begin (&t->open_files), struct file, open_file);
   
@@ -150,12 +182,14 @@ int write (int fd, const void *buffer, unsigned size)
       // Is open_files empty?
       if( &f->open_file == list_tail(&t->open_files) )
       {
+        lock_release(&write_lock);
         return -1;
       }
       
       // Is f correct file?
-      if ( (int) &f->fd == fd )
+      if ( *(int *) &f->fd == fd )
       {
+        lock_release(&write_lock);
         return (int) file_write(f, buffer, size);
       }
       f = list_entry (list_next(&f->open_file), struct file, open_file);    

@@ -95,11 +95,11 @@ struct thread
 
     /* ADDED */
     struct list open_files;             /* Lists Thread's Open Files */
-    struct list children;               /* Lists thread's children */
-    tid_t parent;                       /* Parent's tid */
-    
     int fd_count;                       /* Keeps track of the next fd */
-
+    
+    struct list children;               /* Lists thread's children */
+    int exit_status;
+    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -108,6 +108,17 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+struct child
+{
+  tid_t child;
+  tid_t parent;
+  struct list_elem elem;
+  
+  bool reaped;
+  
+};
+  
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
