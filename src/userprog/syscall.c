@@ -1,5 +1,6 @@
 #include "userprog/syscall.h"
 #include "lib/user/syscall.h"
+#include "lib/kernel/list.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
@@ -10,20 +11,22 @@
 
 static void syscall_handler (struct intr_frame *);
 
-struct lock write_lock;
-struct lock exec_lock;
-
 void
 syscall_init (void) 
 {
   lock_init(&write_lock);
   lock_init(&exec_lock);
+  list_init(&process_list);
+  lock_init(&process_lock);
+  
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+  
+  //printf("Name: %s, Tid: %d\n", thread_current()->name, thread_current()->tid);
   //hex_dump((int) f->esp, f->esp, (char *) PHYS_BASE - (char *) f->esp, 1);
   
   int call_number = *(int *) f->esp;
@@ -94,23 +97,9 @@ void exit (int status)
 pid_t exec (const char *cmd_line) 
 {
   lock_acquire(&exec_lock);  
-  tid_t pid = process_execute (cmd_line);
-    
-  // If exec successful
-  if (pid != -1)
-  {
-    struct thread *parent = thread_current();
-    
-    struct child *temp;
-    temp->child = pid;
-    temp->parent = parent->tid;
-    temp->reaped = FALSE;
-    
-    list_push_back(&parent->children, &temp->elem);
-  }
+  tid_t tid = process_execute (cmd_line);
   lock_release(&exec_lock);
-  
-  return pid;
+  return tid;   
 }
 
 

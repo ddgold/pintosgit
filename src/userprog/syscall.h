@@ -2,9 +2,15 @@
 #define USERPROG_SYSCALL_H
 
 #include "lib/user/syscall.h"
+#include "threads/synch.h"
+
+struct lock write_lock;
+struct lock exec_lock;
+struct list process_list;
+struct lock process_lock;
+
 
 void syscall_init (void);
-
 
 void halt (void);
 

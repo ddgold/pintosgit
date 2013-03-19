@@ -98,6 +98,8 @@ struct thread
     int fd_count;                       /* Keeps track of the next fd */
     
     struct list children;               /* Lists thread's children */
+    struct list_elem child_elem;
+    
     int exit_status;
     
 #ifdef USERPROG
@@ -109,16 +111,11 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-struct child
-{
-  tid_t child;
-  tid_t parent;
-  struct list_elem elem;
-  
-  bool reaped;
-  
-};
-  
+
+/* List of all processes.  Processes are added to this list
+   when they are first scheduled and removed when they exit. */
+static struct list all_list;
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
