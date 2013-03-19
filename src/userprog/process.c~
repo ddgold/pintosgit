@@ -17,10 +17,10 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -47,8 +47,31 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
+  printf("PE  Name: %s, Tid: %d List empty? %d\n", thread_current()->name, thread_current()->tid, list_empty(&process_list));
   if (tid == TID_ERROR)
+  {
     palloc_free_page (fn_copy);
+  }
+  else
+  {
+    struct thread *parent = thread_current();
+    struct thread *child;
+    struct list_elem *e;
+    
+    for (e = list_begin (&process_list); e != list_end (&process_list); e = list_next (e))
+    {
+      printf("how many times does this loop?\n");
+      child = list_entry (e, struct thread, allelem);
+      //printf("%s->tid %d == tid %d\n", &child->name, &child->tid, tid);
+      if (&child->tid == tid)
+      {
+        list_push_back(&parent->children, &child->child_elem);
+        break;
+      }
+    }
+    
+  }  
+
   
   return tid;
 }
@@ -58,10 +81,15 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  
+  printf("SE  Name: %s, Tid: %d\n", thread_current()->name, thread_current()->tid);
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  
+  struct thread *temp = thread_current();
+  
+  list_push_back(&process_list, &temp->child_elem);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -98,26 +126,26 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  printf("Name: %s, Tid: %d\n", thread_current()->name, thread_current()->tid);
+  printf("Enter process_wait: %d\n", child_tid);
+  
+  
+  
+  struct list_elem *e;
+  struct thread *child;
   struct thread *parent = thread_current();
-  struct child temp = list_entry (list_begin (&parent->children), struct child, elem);
-  
-  do
+  for (e = list_begin (&parent->children); e != list_end (&parent->children); e = list_next (e))
   {
-    if( &temp->elem == list_tail(&parent->children) )
+    printf("Enter for loop\n");
+    child = list_entry (e, struct thread, child_elem);
+    if (&child->tid == child_tid)
     {
-      return -1;
+      printf("found child!\n");
     }
-    
-    if ( &temp->child == child_tid )
-    {
-      
-      // rest of implementation
-      // while (child status == RUNNING)
-      
-    }
-    temp = list_entry (list_next(&parent->children), struct child, elem);    
-  } while ( &temp->child != child_tid );
+  }
   
+  
+  //while(1) {};
   return -1;
 }
 
