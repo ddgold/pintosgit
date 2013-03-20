@@ -8,6 +8,7 @@ struct lock write_lock;
 struct lock exec_lock;
 struct list process_list;
 struct lock process_lock;
+struct semaphore list_sema;
 
 
 void syscall_init (void);
