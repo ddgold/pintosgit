@@ -48,30 +48,40 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = exec ((char *) arg0);
       break;
     case SYS_WAIT:
-      wait (*(pid_t *) arg0);
+      f->eax = wait (*(pid_t *) arg0);
       break;
-    /*
     case SYS_CREATE:
       create ((char *) arg0, *(unsigned *) arg1);
       break;
     case SYS_REMOVE:
       remove ((char *) arg0);
       break;
-    */
     case SYS_OPEN:
       f->eax = open (*(int *) arg0);
       break;
-   
+    case SYS_FILESIZE:
+      f->eax = filesize (*(int *) arg0);
+      break;
+    case SYS_READ:
+      f->eax = read (*(int *) arg0, arg1, *(unsigned *) arg2);
+      break;
     case SYS_WRITE:
       f->eax = write (*(int *) arg0, arg1, *(unsigned *) arg2);
       break;
+    case SYS_SEEK:
+      seek (*(int *) arg0, *(unsigned *) arg1);
+      break;
+    case SYS_TELL:
+      f->eax = tell (*(int *) arg0);
+      break;
+    case SYS_CLOSE:
+      close (*(int *) arg0);
+      break;
     default:
-      printf("system call!\n");
+      printf("Invalid sys_call\n");
       thread_exit();
       break;      
   }
-  
-  //thread_exit(); 
 }
 
 
@@ -88,7 +98,8 @@ void halt (void)
 // ----
 void exit (int status)
 {
-  thread_current()->exit_status = status;
+  struct thread *t = thread_current();
+  t->exit_status = status;
   thread_exit ();
 }
 
@@ -103,38 +114,37 @@ pid_t exec (const char *cmd_line)
   return tid;   
 }
 
-
+// ----
+// wait
+// ----
 int wait (pid_t pid)
 {
-  process_wait(pid);
-  
-  return -1;
+  return process_wait(pid);
 }
 
-
-/*
-int wait (pid_t pid)
-{
-  return process_wait(pid);  
-}
-
+// ------
+// create
+// ------
 bool create (const char *file, unsigned initial_size)
 {
-  
-  return false;
+  printf("Create!\n");
+  return 0;
 }
 
-
+// ------
+// remove
+// ------
 bool remove (const char *file)
 {
-  return false;
+  printf("Remove!\n");
+  return 0;
 }
-*/
 
-
+// ----
+// open
+// ----
 int open (const char *file)
 {
-  
   struct thread *t = thread_current();
   struct file *f = filesys_open(file);
   if (f != NULL)
@@ -148,6 +158,18 @@ int open (const char *file)
   {
     return -1;
   }
+}
+
+int filesize (int fd)
+{
+  printf("filesize!\n");
+  return 0;
+}
+
+int read (int fd, void *buffer, unsigned size) 
+{
+  printf("read!\n");
+  return 0;
 }
 
 int write (int fd, const void *buffer, unsigned size)
@@ -189,11 +211,23 @@ int write (int fd, const void *buffer, unsigned size)
   return -1;
 }
 
+void seek (int fd, unsigned position)
+{
+  printf("Seek!\n");
+  return;
+}
 
+unsigned tell (int fd) 
+{
+  printf("tell!\n");
+  return 0u;
+}
 
-
-
-
+void close (int fd) 
+{
+  printf("close!\n");
+  return;
+}
 
 
 

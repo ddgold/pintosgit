@@ -44,12 +44,13 @@ process_execute (const char *file_name)
   const char *temp = file_name;
   name = strtok_r (temp, " ", &save_ptr);
   /* End ADDED */
-
+  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
-  //printf("PE  Name: %s, Tid: %d List empty? %d\n", thread_current()->name, thread_current()->tid, list_empty(&process_list));
+  
+  /* Added: Find child in process_list and adding to children list */
   sema_down(&list_sema);
- //printf("After PE  Name: %s, Tid: %d List empty? %d\n", thread_current()->name, thread_current()->tid, list_empty(&process_list));
+  
   if (tid == TID_ERROR)
   {
     palloc_free_page (fn_copy);
@@ -62,17 +63,13 @@ process_execute (const char *file_name)
     
     for (e = list_begin (&process_list); e != list_end (&process_list); e = list_next (e))
     {
-      //printf("how many times does this loop?\n");
-      child = list_entry (e, struct thread, child_elem);//allelem);
-      printf("%s->tid %d == tid %d\n", &child->name, *(&child->tid), tid);
+      child = list_entry (e, struct thread, process_elem);
       if (*(&child->tid) == tid)
       {
-        //printf("here?\n");
         list_push_back(&parent->children, &child->child_elem);
         break;
       }
     }
-    
   }  
  
   
@@ -84,14 +81,17 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  
-  //printf("SE  Name: %s, Tid: %d\n", thread_current()->name, thread_current()->tid);
+
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  
+  /* Added: Put in process_list */
   struct thread *temp = thread_current();
-  list_push_back(&process_list, &temp->child_elem);
-  sema_up(&list_sema);
+  list_push_back(&process_list, &temp->process_elem);
+
+  /* End */
+  
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -99,12 +99,12 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  sema_up(&list_sema);
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success)
     thread_exit ();
-
-  
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -128,26 +128,24 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  //printf("Name: %s, Tid: %d\n", thread_current()->name, thread_current()->tid);
-  printf("Enter process_wait: %d\n", child_tid);
-  
-  
-  
+
   struct list_elem *e;
   struct thread *child;
   struct thread *parent = thread_current();
   for (e = list_begin (&parent->children); e != list_end (&parent->children); e = list_next (e))
   {
-    printf("Enter for loop\n");
+
     child = list_entry (e, struct thread, child_elem);
+
     if (*(&child->tid) == child_tid)
     {
-      printf("found child!\n");
+
+      sema_down(&child->exit_sema);
+
+      return *(&child->exit_status);
     }
   }
-  
-  
-  //while(1) {};
+
   return -1;
 }
 
@@ -157,7 +155,11 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
+  
+  /* Added: Wakes up a waiting parent */
+  sema_up(&cur->exit_sema);
+  /* End added */
+  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -174,6 +176,11 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+    
+  /* Added: removes the list from the all process list */
+  //sema_down(&cur->exit2_sema);
+  printf ("%s: exit(%d)\n", &cur->name, *(&cur->exit_status));
+  list_remove (&cur->process_elem);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -585,9 +592,6 @@ setup_stack (void **esp, char **arg_holder, int arg_count)
         int_pointer = (int*) *esp;
         *int_pointer = 0;
         
-        // Execute hex_dump
-        //hex_dump((int) *esp, *esp, (char *) PHYS_BASE - (char *) *esp, 1);
-        //printf("\n");
         
         // Deallocate pointer_holder
         palloc_free_page (pointer_holder);
