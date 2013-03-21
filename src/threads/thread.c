@@ -286,17 +286,20 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  struct thread *t = thread_current ();
+  
   ASSERT (!intr_context ());
-
+  
 #ifdef USERPROG
   process_exit ();
 #endif
-
+  
+   
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current()->allelem);
+  list_remove (&t->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
@@ -472,7 +475,8 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->open_files);
   t->fd_count = 2;
   list_init(&t->children);
-  
+  sema_init(&t->exit_sema, 0);
+  sema_init(&t->exit2_sema, 0);
   
   list_push_back (&all_list, &t->allelem);
 }
