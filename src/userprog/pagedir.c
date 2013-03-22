@@ -5,6 +5,7 @@
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
+#include "threads/vaddr.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
@@ -260,4 +261,11 @@ invalidate_pagedir (uint32_t *pd)
          "Translation Lookaside Buffers (TLBs)". */
       pagedir_activate (pd);
     } 
+}
+
+
+bool valid_pointer (void *p)
+{
+  uint32_t *mapped = lookup_page (active_pd (), *(int *)p, false);
+  return ((*(int *)p != NULL) && (p <= PHYS_BASE) && (mapped != 0) );
 }
