@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -90,6 +91,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  list_init (&process_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -474,9 +476,13 @@ init_thread (struct thread *t, const char *name, int priority)
   /* ADDED */
   list_init(&t->open_files);
   t->fd_count = 2;
+  t->parent = 0;
+  t->exit_status = -1;
   list_init(&t->children);
   sema_init(&t->exit_sema, 0);
-  sema_init(&t->exit2_sema, 0);
+  sema_init(&t->sync_sema, 0);
+  sema_init(&t->reap_sema, 0);
+  list_push_back(&process_list, &t->process_elem);
   
   list_push_back (&all_list, &t->allelem);
 }

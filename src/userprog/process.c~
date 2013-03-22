@@ -31,7 +31,6 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -43,36 +42,17 @@ process_execute (const char *file_name)
   char *name, *save_ptr;
   const char *temp = file_name;
   name = strtok_r (temp, " ", &save_ptr);
-  /* End ADDED */
+  
+  struct thread *t = thread_current();
+  t->isParent = 1;
+  /* End */
   
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
   
-  /* Added: Find child in process_list and adding to children list */
-  sema_down(&list_sema);
-  
-  if (tid == TID_ERROR)
-  {
-    palloc_free_page (fn_copy);
-  }
-  else
-  {
-    struct thread *parent = thread_current();
-    struct thread *child;
-    struct list_elem *e;
+  /* ADDED: Wait for child to create */
+  sema_down(&t->sync_sema);
     
-    for (e = list_begin (&process_list); e != list_end (&process_list); e = list_next (e))
-    {
-      child = list_entry (e, struct thread, process_elem);
-      if (*(&child->tid) == tid)
-      {
-        list_push_back(&parent->children, &child->child_elem);
-        break;
-      }
-    }
-  }  
- 
-  
   return tid;
 }
 
@@ -81,16 +61,12 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
   
   /* Added: Put in process_list */
   struct thread *temp = thread_current();
-  list_push_back(&process_list, &temp->process_elem);
-
-  /* End */
   
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -98,14 +74,31 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
-  sema_up(&list_sema);
-
+  
+  /* Added: Find parent and add to children list */
+  struct thread *parent;
+  struct thread *child = thread_current();
+  struct list_elem *e;
+  for (e = list_begin (&process_list); e != list_end (&process_list); e = list_next (e))
+  {
+    parent = list_entry (e, struct thread, process_elem);
+    
+    if (parent->isParent == 1)
+    {
+      child->parent = parent;
+      list_push_back(&parent->children, &child->child_elem);
+      parent->isParent = 0;
+      break;
+    }
+  }
+  
+  sema_up(&parent->sync_sema);
+  /* End */  
+    
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success)
     thread_exit ();
-
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -128,21 +121,21 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-
   struct list_elem *e;
   struct thread *child;
   struct thread *parent = thread_current();
+  
   for (e = list_begin (&parent->children); e != list_end (&parent->children); e = list_next (e))
   {
-
     child = list_entry (e, struct thread, child_elem);
-
+    
     if (*(&child->tid) == child_tid)
     {
-
       sema_down(&child->exit_sema);
-
-      return *(&child->exit_status);
+      sema_up(&child->reap_sema);
+      int result = *(&child->exit_status);
+      sema_down(&child->exit_sema);
+      return result;
     }
   }
 
@@ -153,16 +146,16 @@ process_wait (tid_t child_tid UNUSED)
 void
 process_exit (void)
 {
-  struct thread *cur = thread_current ();
+  struct thread *parent = thread_current ();
   uint32_t *pd;
   
   /* Added: Wakes up a waiting parent */
-  sema_up(&cur->exit_sema);
+  sema_up(&parent->exit_sema);
   /* End added */
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
-  pd = cur->pagedir;
+  pd = parent->pagedir;
   if (pd != NULL) 
     {
       /* Correct ordering here is crucial.  We must set
@@ -172,15 +165,21 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
-      cur->pagedir = NULL;
+      parent->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
     
   /* Added: removes the list from the all process list */
-  //sema_down(&cur->exit2_sema);
-  printf ("%s: exit(%d)\n", &cur->name, *(&cur->exit_status));
-  list_remove (&cur->process_elem);
+  printf ("%s: exit(%d)\n", &parent->name, *(&parent->exit_status));
+  
+  //printf("EXIT %s\n", &parent->name);
+  sema_down(&parent->reap_sema);
+  
+  list_remove (&parent->child_elem);
+  list_remove (&parent->process_elem);
+  
+  sema_up(&parent->exit_sema);
 }
 
 /* Sets up the CPU for running user code in the current

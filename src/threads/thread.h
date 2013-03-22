@@ -97,12 +97,16 @@ struct thread
     /* ADDED */
     struct list open_files;             /* Lists Thread's Open Files */
     int fd_count;                       /* Keeps track of the next fd */
+    int isParent;                          /* Keep track of current parent*/
+    int isReaped;
+    struct thread *parent;
     
     struct list children;               /* Lists thread's children */
     struct list_elem process_elem;      /* element for the process_list*/
     struct list_elem child_elem;        /* element for the children list*/
-    struct semaphore exit2_sema;
+    struct semaphore sync_sema;
     struct semaphore exit_sema;         /* semaphore for waiting on a child */
+    struct semaphore reap_sema;
     
     int exit_status;
     
