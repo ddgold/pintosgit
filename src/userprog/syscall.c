@@ -27,7 +27,10 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-
+  if (!valid_pointer (&f->esp))
+  {
+    exit (-1);
+  }
   // Get syscall number off stack
   int call_number = *(int *) f->esp;
   

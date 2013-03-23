@@ -271,5 +271,5 @@ bool valid_pointer (void *p)
 {
 
   uint32_t *mapped = lookup_page (active_pd (), *(int *)p, false);
-  return (mapped != 0) && (p < PHYS_BASE) && (*(int *)p != NULL);
+  return (mapped != 0) && (*(int *)p < PHYS_BASE) && (*(int *)p != NULL);
 }
