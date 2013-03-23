@@ -473,7 +473,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   
-  /* ADDED */
+  /* ADDED: Intials all necessary values */
   list_init(&t->open_files);
   t->fd_count = 2;
   t->parent = 0;

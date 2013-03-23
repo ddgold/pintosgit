@@ -263,25 +263,13 @@ invalidate_pagedir (uint32_t *pd)
     } 
 }
 
-
+/* Check is valid pointer by varifing:
+    1) The address pointed to is mapped
+    2) The address is less then PHYS_BASE
+    3) The pointer is not null */
 bool valid_pointer (void *p)
 {
 
   uint32_t *mapped = lookup_page (active_pd (), *(int *)p, false);
   return (mapped != 0) && (p < PHYS_BASE) && (*(int *)p != NULL);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
