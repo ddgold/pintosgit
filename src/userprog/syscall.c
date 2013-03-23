@@ -27,21 +27,24 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  
-  //printf("Name: %s, Tid: %d\n", thread_current()->name, thread_current()->tid);
-  //hex_dump((int) f->esp, f->esp, (char *) PHYS_BASE - (char *) f->esp, 1);
-  
+
   int call_number = *(int *) f->esp;
+  
+
+  
   void *arg0 = f->esp + 4;
   void *arg1 = f->esp + 8;
   void *arg2 = f->esp + 12;
   
-  if ( (*(int *) arg0 > f->esp) && 
-       (*(int *) arg0 > f->esp) && 
-       (*(int *) arg0 > f->esp) )
+  
+  if ( (*(int *) arg0 > f->esp) &&
+       (*(int *) arg1 > f->esp) && 
+       (*(int *) arg2 > f->esp) )
   {
     exit (-1);
   }
+  
+  
   
   switch (call_number)
   {
@@ -122,7 +125,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       close (*(int *) arg0);
       break;
     default:
-      //printf("Invalid sys_call\n");
       exit(-1);
       break;      
   }
@@ -134,15 +136,16 @@ struct file* find_file (int fd)
   struct list_elem *e;
   struct file *f;
   
+
   for (e = list_begin (&t->open_files); e != list_end (&t->open_files); e = list_next (e))
   {
     f = list_entry (e, struct file, open_file);
-    if (&f->fd == fd)
+    if (f->fd == fd)
     {
       return f;
     }
   }
-  
+
   return NULL;
 }
 
@@ -173,7 +176,7 @@ void exit (int status)
 pid_t exec (const char *cmd_line) 
 {
   tid_t tid = process_execute (*(int *) cmd_line);  
-  return tid;   
+  return tid;
 }
 
 // ----
@@ -208,6 +211,7 @@ int open (const char *file)
 {
   struct thread *t = thread_current();
   struct file *f = filesys_open(file);
+  file_deny_write(&f);
   if (f != NULL)
   {
     list_push_back(&t->open_files, &f->open_file);
@@ -226,9 +230,9 @@ int open (const char *file)
 // --------
 int filesize (int fd)
 { 
-
   struct file *f = find_file (fd);
-  return (int) file_length (&f);
+  int length = file_length (f);
+  return length;
 }
 
 // ----
@@ -241,7 +245,11 @@ int read (int fd, void *buffer, unsigned size)
   {
     return -1;
   }
-  return (int) file_read (&f, &buffer, (off_t)size); 
+  else
+  {
+    int read = file_read(f, *(int *)buffer, (off_t) size);
+    return read;
+  }
 }
 
 // -----
@@ -309,20 +317,6 @@ unsigned tell (int fd)
 // -----
 void close (int fd) 
 {
-  printf("close!\n");
-  return;
+  struct file *f = find_file (fd);
+  return file_close(f);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

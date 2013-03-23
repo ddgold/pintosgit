@@ -58,7 +58,7 @@ static uint32_t *
 lookup_page (uint32_t *pd, const void *vaddr, bool create)
 {
   uint32_t *pt, *pde;
-
+  
   ASSERT (pd != NULL);
 
   /* Shouldn't create new kernel virtual mappings. */
@@ -266,6 +266,22 @@ invalidate_pagedir (uint32_t *pd)
 
 bool valid_pointer (void *p)
 {
+
   uint32_t *mapped = lookup_page (active_pd (), *(int *)p, false);
-  return ((*(int *)p != NULL) && (p <= PHYS_BASE) && (mapped != 0) );
+  return (mapped != 0) && (p < PHYS_BASE) && (*(int *)p != NULL);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
