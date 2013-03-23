@@ -121,17 +121,21 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+
   struct list_elem *e;
   struct thread *child;
   struct thread *parent = thread_current();
   
   for (e = list_begin (&parent->children); e != list_end (&parent->children); e = list_next (e))
   {
+
     child = list_entry (e, struct thread, child_elem);
     
     if (*(&child->tid) == child_tid)
     {
+
       sema_down(&child->exit_sema);
+
       sema_up(&child->reap_sema);
       int result = *(&child->exit_status);
       sema_down(&child->exit_sema);
@@ -394,6 +398,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
+
 
  done:
   /* ADDED: Frees pages */
