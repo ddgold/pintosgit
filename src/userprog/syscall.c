@@ -28,27 +28,25 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 
+  // Get syscall number off stack
   int call_number = *(int *) f->esp;
   
-
-  
+  // Get arguments off stack
   void *arg0 = f->esp + 4;
   void *arg1 = f->esp + 8;
   void *arg2 = f->esp + 12;
   
-  
+  // Varify that all the arguments are above the stack pointer
   if ( (*(int *) arg0 > f->esp) &&
        (*(int *) arg1 > f->esp) && 
        (*(int *) arg2 > f->esp) )
   {
     exit (-1);
   }
-  
-  
-  
+   
+  // Switch for the syscalls
   switch (call_number)
   {
-    
     case SYS_HALT:
       halt ();
       break;
@@ -88,7 +86,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       else
       {
-        //printf("bad pointer!!!!!!\n");
         exit (-1);
       }
       break;
@@ -98,7 +95,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_READ:
       if (valid_pointer (arg1))
       {
-      f->eax = read (*(int *) arg0, arg1, *(unsigned *) arg2);
+        f->eax = read (*(int *) arg0, arg1, *(unsigned *) arg2);
       }
       else
       {
@@ -130,13 +127,13 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
 }
 
+// Look up file from current thread's open_files list from fd
 struct file* find_file (int fd)
 {
   struct thread *t = thread_current();
   struct list_elem *e;
   struct file *f;
   
-
   for (e = list_begin (&t->open_files); e != list_end (&t->open_files); e = list_next (e))
   {
     f = list_entry (e, struct file, open_file);
@@ -145,7 +142,6 @@ struct file* find_file (int fd)
       return f;
     }
   }
-
   return NULL;
 }
 
@@ -212,6 +208,8 @@ int open (const char *file)
   struct thread *t = thread_current();
   struct file *f = filesys_open(file);
   file_deny_write(&f);
+  
+  // If valid file, update fd and fd_count and add file to open_files list
   if (f != NULL)
   {
     list_push_back(&t->open_files, &f->open_file);
@@ -241,6 +239,7 @@ int filesize (int fd)
 int read (int fd, void *buffer, unsigned size) 
 {
   struct file *f = find_file(fd);
+  // If valid fd read, else return -1
   if (f == NULL)
   {
     return -1;
@@ -257,16 +256,21 @@ int read (int fd, void *buffer, unsigned size)
 // -----
 int write (int fd, const void *buffer, unsigned size)
 {
-  if (fd == 0) // Write to stdin
+  // Write to stdin
+  if (fd == 0)
   {
     return 0;
   }
-  else if (fd == 1) // Write to stdout
+  
+  // Write to stdout
+  else if (fd == 1) 
   {
     putbuf(*(int *)buffer, size);
     return (int) size;
   }
-  else // Write to file
+  
+  // Write to file
+  else
   {
     lock_acquire(&write_lock);
     struct thread *t = thread_current();
