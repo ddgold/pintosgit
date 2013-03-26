@@ -292,7 +292,7 @@ int write (int fd, const void *buffer, unsigned size)
       if ( *(int *) &f->fd == fd )
       {
         lock_release(&write_lock);
-        int test = file_write(f, buffer, size);
+        int test = file_write(f, *(int *)buffer, size);
         return test;
       }
       f = list_entry (list_next(&f->open_file), struct file, open_file);    
