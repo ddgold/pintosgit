@@ -20,7 +20,7 @@ syscall_init (void)
   lock_init(&exec_lock);
   lock_init(&process_lock);
   sema_init(&list_sema, 0);
-  
+  sema_init(&close_sema, 1);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -174,7 +174,7 @@ void exit (int status)
 // ----
 pid_t exec (const char *cmd_line) 
 {
-  tid_t tid = process_execute (*(int *) cmd_line);  
+  tid_t tid = process_execute (*(int *) cmd_line);
   return tid;
 }
 
@@ -292,7 +292,8 @@ int write (int fd, const void *buffer, unsigned size)
       if ( *(int *) &f->fd == fd )
       {
         lock_release(&write_lock);
-        return (int) file_write(f, buffer, size);
+        int test = file_write(f, buffer, size);
+        return test;
       }
       f = list_entry (list_next(&f->open_file), struct file, open_file);    
     } while ((int) &f->fd != fd);
@@ -322,8 +323,17 @@ unsigned tell (int fd)
 // -----
 // close
 // -----
-void close (int fd) 
+void close (int fd)
 {
+  sema_down(&close_sema);
   struct file *f = find_file (fd);
+  if(f == NULL)
+  {
+    sema_up(&close_sema);
+    exit(-1);
+    return;
+  }
+  list_remove(&f->open_file);
+  sema_up(&close_sema);
   return file_close(f);
 }

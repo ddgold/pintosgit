@@ -43,6 +43,15 @@ process_execute (const char *file_name)
   const char *temp = file_name;
   name = strtok_r (temp, " ", &save_ptr);
   
+  /*
+  name = strtok_r(file_name, " ", &save_ptr);
+  int i;
+  for(i = 0; i < 10; i++)
+  {
+    printf("%c", name[i]);
+  }
+  printf("\n");
+  */
   struct thread *t = thread_current();
   t->isParent = 1;
   /* End */
