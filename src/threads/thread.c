@@ -181,7 +181,11 @@ thread_create (const char *name, int priority,
     return TID_ERROR;
 
   /* Initialize thread. */
-  init_thread (t, name, priority);
+  char *temp_name, *t_name, *save_ptr;
+  temp_name = palloc_get_page (0);
+  strlcpy(temp_name, name, PGSIZE);
+  t_name = strtok_r(temp_name, " ", &save_ptr);
+  init_thread (t, t_name, priority);
   tid = t->tid = allocate_tid ();
 
   /* Prepare thread for first run by initializing its stack.

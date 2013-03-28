@@ -38,7 +38,8 @@ syscall_handler (struct intr_frame *f UNUSED)
   void *arg0 = f->esp + 4;
   void *arg1 = f->esp + 8;
   void *arg2 = f->esp + 12;
-  
+ 
+
   // Varify that all the arguments are above the stack pointer
   if ( (*(int *) arg0 > f->esp) &&
        (*(int *) arg1 > f->esp) && 
