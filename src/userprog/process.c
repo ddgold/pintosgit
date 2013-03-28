@@ -40,24 +40,17 @@ process_execute (const char *file_name)
   
   /* ADDED: Parse out name of function */
   char *name, *save_ptr;
-  const char *temp = file_name;
-  name = strtok_r (temp, " ", &save_ptr);
-  
-  /*
-  name = strtok_r(file_name, " ", &save_ptr);
-  int i;
-  for(i = 0; i < 10; i++)
-  {
-    printf("%c", name[i]);
-  }
-  printf("\n");
-  */
+  //const char *temp = file_name;
+  //char *arg;
+  //name = strtok_r(fn_copy, " ", &save_ptr);
+  //arg  = strtok_r(NULL, " ", &save_ptr);
   struct thread *t = thread_current();
   t->isParent = 1;
   /* End */
   
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
+  //name = strtok_r(fn_copy, " ", &save_ptr);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   
   /* ADDED: Wait for child to create */
   sema_down(&t->sync_sema);
@@ -70,10 +63,14 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  char *name, *save_ptr;
+  //name = strtok_r((char *)file_name_, " ", &save_ptr);
   char *file_name = file_name_;
+  //char *file_name = name;
   struct intr_frame if_;
   bool success;
   
+
   /* Added: Put in process_list */
   struct thread *temp = thread_current();
   
@@ -82,7 +79,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (file_name_, &if_.eip, &if_.esp);
   
   /* Added: Find parent and add to children list */
   struct thread *parent;
@@ -305,6 +302,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int temp_count;
   char **arg_holder = palloc_get_page (0);
   
+
   for (token = strtok_r (file_name, " ", &save_ptr); 
        token != NULL;
        token = strtok_r (NULL, " ", &save_ptr))
@@ -315,6 +313,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
   
   file_name = arg_holder[0];
+
   /* End ADDED */
   
   
