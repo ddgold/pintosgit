@@ -37,7 +37,9 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  
+  char *name_holder;
+  name_holder = palloc_get_page (0);
+  strlcpy (name_holder, file_name, PGSIZE);
   /* ADDED: Parse out name of function */
   char *name, *save_ptr;
   //const char *temp = file_name;
@@ -47,14 +49,23 @@ process_execute (const char *file_name)
   struct thread *t = thread_current();
   t->isParent = 1;
   /* End */
-  
+  char *temp_ptr, *t_name;
+  t_name = strtok_r(name_holder, " ", &temp_ptr);
+
+  if(filesys_open(t_name) == NULL)
+  {
+    
+    return -1;
+  }
+
   /* Create a new thread to execute FILE_NAME. */
   //name = strtok_r(fn_copy, " ", &save_ptr);
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   
   /* ADDED: Wait for child to create */
   sema_down(&t->sync_sema);
-    
+
+
   return tid;
 }
 
@@ -104,7 +115,9 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success)
+  {
     thread_exit ();
+  }
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
