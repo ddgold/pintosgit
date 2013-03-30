@@ -309,12 +309,7 @@ int write (int fd, const void *buffer, unsigned size)
 void seek (int fd, unsigned position)
 {
   struct file *f = find_file (fd);
-  
-  //printf("file: %d  pos: %d\n", fd, position);
-  
-  file_seek (f, (off_t) position);
-  
-  return;
+  return file_seek (f, (off_t) position);
 }
 
 // ----
