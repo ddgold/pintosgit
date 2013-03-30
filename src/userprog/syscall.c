@@ -10,7 +10,6 @@
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
 
-
 static void syscall_handler (struct intr_frame *);
 
 void
@@ -33,7 +32,8 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
   // Get syscall number off stack
   int call_number = *(int *) f->esp;
-  
+ 
+
   // Get arguments off stack
   void *arg0 = f->esp + 4;
   void *arg1 = f->esp + 8;
@@ -309,7 +309,12 @@ int write (int fd, const void *buffer, unsigned size)
 void seek (int fd, unsigned position)
 {
   struct file *f = find_file (fd);
-  return file_seek (&f, (off_t) position);
+  
+  //printf("file: %d  pos: %d\n", fd, position);
+  
+  file_seek (f, (off_t) position);
+  
+  return;
 }
 
 // ----
