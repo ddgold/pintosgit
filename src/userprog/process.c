@@ -19,6 +19,9 @@
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
 
+#include "vm/frame.h"
+#include "vm/page.h"
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -40,12 +43,9 @@ process_execute (const char *file_name)
   char *name_holder;
   name_holder = palloc_get_page (0);
   strlcpy (name_holder, file_name, PGSIZE);
+  
   /* ADDED: Parse out name of function */
   char *name, *save_ptr;
-  //const char *temp = file_name;
-  //char *arg;
-  //name = strtok_r(fn_copy, " ", &save_ptr);
-  //arg  = strtok_r(NULL, " ", &save_ptr);
   struct thread *t = thread_current();
   t->isParent = 1;
   /* End */
@@ -124,6 +124,14 @@ start_process (void *file_name_)
      arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
+  
+  /*ADDED PROJECT 3: Adds process to frame table */
+  
+  struct frame f;
+  f.page = palloc_get_page(PAL_USER);   
+  //Should we store this pointer in the thread struct???
+  frame_table_add(&f);
+  
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
