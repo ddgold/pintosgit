@@ -48,21 +48,22 @@ process_execute (const char *file_name)
   name = strtok_r (fn_temp, " ", &save_ptr);
   
   // Verify child file exists
-  if(filesys_open(name) == NULL)
+  struct file *temp = filesys_open(name);
+  if(temp == NULL)
   {
     return -1;
   }
+  file_close(temp);
   
   // Set isParent bit
   struct thread *t = thread_current();
   t->isParent = 1;
      
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
   
   /* ADDED: Wait for child to create */
   sema_down(&t->sync_sema);
-
 
   return tid;
 }
@@ -94,6 +95,12 @@ start_process (void *file_name_)
   {
     parent = list_entry (e, struct thread, process_elem);
     
+    
+    int i;
+    for(i = 0; i < 10; i++)
+    {
+    }
+     
     if (parent->isParent == 1)
     {
       child->parent = parent;
@@ -121,10 +128,10 @@ start_process (void *file_name_)
   
   /*ADDED PROJECT 3: Adds process to frame table */
   
-  struct frame f;
-  f.page = palloc_get_page(PAL_USER);   
+  struct page *p = palloc_get_page(PAL_USER);   
   //Should we store this pointer in the thread struct???
-  frame_table_add(&f);
+  p->name = file_name_;
+  frame_table_add(&p);
   
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
@@ -209,6 +216,7 @@ process_exit (void)
   list_remove (&t->process_elem);
   
   /* Wake parent, indicating that child has exited */
+  file_close(t->executable);
   sema_up(&t->exit_sema);
 }
 
@@ -340,6 +348,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Open executable file. */
   file = filesys_open (file_name);
+  
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -442,6 +451,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* We arrive here whether the load is successful or not. */
   if (success)
   {
+    t->executable = file;
+    //printf("file_deny_write on file: %d\n", file->fd);
     file_deny_write(file);
   }
   else
