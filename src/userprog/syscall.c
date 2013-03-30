@@ -211,7 +211,7 @@ int open (const char *file)
 {
   struct thread *t = thread_current();
   struct file *f = filesys_open(file);
-  file_deny_write(&f);
+  //file_deny_write(&f);
   
   // If valid file, update fd and fd_count and add file to open_files list
   if (f != NULL)

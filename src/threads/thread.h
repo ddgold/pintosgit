@@ -111,6 +111,8 @@ struct thread
                                            alive when parent reaps it */
     
     int exit_status;                    /* Stores thread exit status */
+    struct file* executable;            /* Stores the executable that made the
+                                           thread */
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
