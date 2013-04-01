@@ -11,7 +11,7 @@ struct frame
   uint32_t p_addr;
   int isMapped;
   struct thread *owner;
-  struct list_elem *frame_elem;
+  struct list_elem frame_elem;
 };
 
 static struct list *frame_table;
