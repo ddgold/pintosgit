@@ -120,13 +120,6 @@ start_process (void *file_name_)
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   
-  /*ADDED PROJECT 3: Adds process to frame table */
-  
-  struct page *p = palloc_get_page(PAL_USER);   
-  //Should we store this pointer in the thread struct???
-  p->name = file_name_;
-  frame_table_add(&p);
-  
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }

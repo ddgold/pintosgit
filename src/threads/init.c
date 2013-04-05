@@ -24,6 +24,10 @@
 #include "threads/thread.h"
 
 
+/* ADDED: include frame and page */
+#include "vm/frame.h"
+#include "vm/page.h"
+
 
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -40,9 +44,6 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
-#include "vm/frame.h" //added
-#include "vm/page.h"
-//#include "vm/swap.h"
 
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
@@ -122,6 +123,9 @@ main (void)
   syscall_init ();
 #endif
   
+  /* ADDED: Initialize frame table */
+  frame_init (user_page_limit);
+  
   
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
@@ -134,7 +138,7 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
-
+  
   printf ("Boot complete.\n");
   
   /* Run actions specified on kernel command line. */
@@ -187,7 +191,7 @@ paging_init (void)
 
       pt[pte_idx] = pte_create_kernel (vaddr, !in_kernel_text);
     }
-
+    
   /* Store the physical address of the page directory into CR3
      aka PDBR (page directory base register).  This activates our
      new page tables immediately.  See [IA32-v2a] "MOV--Move

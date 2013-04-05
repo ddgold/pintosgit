@@ -1,23 +1,22 @@
 #ifndef VM_FRAME_H
 #define VM_FRAME_H
 
-#include <vm/page.h>
 #include <thread.h>
 #include <list.h>
 
 struct frame
 {
-  uint32_t v_addr;
-  uint32_t p_addr;
-  int isMapped;
+  void* v_addr;
+  void* p_addr;
   struct thread *owner;
   struct list_elem frame_elem;
 };
 
-static struct list *frame_table;
-static int frame_table_left;
+static struct list *frame_list;
+static struct lock *frame_lock;
+static int frame_left;
 
-void frame_table_init (void);
-uint32_t* frame_table_add (struct page *);
+void frame_init (int);
+void* frame_add (void*);
 
 #endif
