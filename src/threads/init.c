@@ -125,6 +125,7 @@ main (void)
   
   /* ADDED: Initialize frame table */
   frame_init (user_page_limit);
+  page_init ();
   
   
   /* Start thread scheduler and enable interrupts. */
