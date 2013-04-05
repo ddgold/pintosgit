@@ -3,6 +3,7 @@
 
 #include <thread.h>
 #include <list.h>
+#include "threads/synch.h"
 
 struct frame
 {
@@ -10,10 +11,11 @@ struct frame
   void* p_addr;
   struct thread *owner;
   struct list_elem frame_elem;
+  char *name; //name of thread owner for debugging
 };
 
-static struct list *frame_list;
-static struct lock *frame_lock;
+static struct list frame_list;
+static struct lock frame_lock;
 static int frame_left;
 
 void frame_init (int);

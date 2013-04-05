@@ -17,11 +17,11 @@ void frame_init (int user_page_limit)
 
 void* frame_add (void *pg)
 {
-  /*
+    lock_acquire(&frame_lock);
     void *fm = palloc_get_page (PAL_USER);
     if (fm == NULL)   // Frame table full, swap frame
     {
-        
+        PANIC ("NEED SWAPING!");
     }
     else              // Frane table not full, add frame
     {
@@ -30,9 +30,9 @@ void* frame_add (void *pg)
         temp->v_addr = pg;
         temp->p_addr = fm;
         temp->owner = thread_current ();
-        
+        list_push_back (&frame_list, &temp->frame_elem);
         --frame_left;
     }
-    */
+    lock_release(&frame_lock);
     return 0;
 }
