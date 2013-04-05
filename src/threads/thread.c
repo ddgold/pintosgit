@@ -87,8 +87,6 @@ static tid_t allocate_tid (void);
 void
 thread_init (void) 
 {
-  //Initialize the frame table.
-  list_init (&frame_table);
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
