@@ -566,12 +566,13 @@ setup_stack (void **esp, char **arg_holder, int arg_count)
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  //kpage = palloc_get_page (0);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
       {
-        frame_add((PAL_USER | PAL_ZERO), kpage);
+        //frame_add((PAL_USER | PAL_ZERO), kpage);
         sup_page_add (kpage);
         
         *esp = PHYS_BASE;
@@ -643,7 +644,6 @@ setup_stack (void **esp, char **arg_holder, int arg_count)
       }
     }
     
-
   return success;
 }
 
