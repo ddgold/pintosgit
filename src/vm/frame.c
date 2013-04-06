@@ -5,6 +5,7 @@
 #include <list.h>
 #include <vm/page.h>
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 
 
 
@@ -17,6 +18,8 @@ void frame_init (int user_page_limit)
 
 void* frame_add (int flags, void *pg)
 {
+  struct thread *t = thread_current();
+  printf("name: %s\n", &t->name);
   lock_acquire(&frame_lock);
   void *fm = palloc_get_page (flags);
     
@@ -36,5 +39,5 @@ void* frame_add (int flags, void *pg)
     --frame_left;
   }
   lock_release(&frame_lock);
-  return pg;  // NEEDS TO BE CHANGED!!!!!!!!
+  return fm;  // NEEDS TO BE CHANGED!!!!!!!!
 }
