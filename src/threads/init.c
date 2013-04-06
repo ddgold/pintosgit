@@ -101,6 +101,9 @@ main (void)
   printf ("Pintos booting with %'"PRIu32" kB RAM...\n",
           init_ram_pages * PGSIZE / 1024);
 
+
+
+
   /* Initialize memory system. */
   palloc_init (user_page_limit);
   malloc_init ();
@@ -123,8 +126,9 @@ main (void)
   syscall_init ();
 #endif
   
+  
   /* ADDED: Initialize frame table */
-  frame_init (user_page_limit);
+  frame_init (20);
   page_init ();
   
   

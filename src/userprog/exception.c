@@ -154,17 +154,17 @@ page_fault (struct intr_frame *f)
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
   
-  /*
+  
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
-  */
+  
 
-  printf("page faulting, adding to frame table\n");
-  frame_add ((PAL_USER | PAL_ZERO),fault_addr);
+  //PANIC ("page faulting, adding to frame table");
+  //frame_add (fault_addr);
   
 }
 
