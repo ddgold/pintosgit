@@ -6,6 +6,7 @@
 #include "threads/pte.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
@@ -97,29 +98,38 @@ lookup_page (uint32_t *pd, const void *vaddr, bool create)
    Returns true if successful, false if memory allocation
    failed. */
 bool
-pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
+pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable, struct file *file)
 {
   uint32_t *pte;
+  struct page *pg;
 
+  
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (pg_ofs (kpage) == 0);
   ASSERT (is_user_vaddr (upage));
   ASSERT (vtop (kpage) >> PTSHIFT < init_ram_pages);
   ASSERT (pd != init_page_dir);
-
+  
   pte = lookup_page (pd, upage, true);
 
   if (pte != NULL) 
     {
       ASSERT ((*pte & PTE_P) == 0);
       *pte = pte_create_user (kpage, writable);
+      pg = malloc(sizeof (struct page));
+      //Adds the pte to the page struct.
+      pg->pte_num = *pte;
+      pg->v_addr = upage;
+      pg->p_addr = kpage;
+      pg->file = file;
+      sup_page_add(pg);
       return true;
     }
   else
     return false;
 }
 
-/* Looks up the physical address that corresponds to user virtual
+/* Looks up the physical address that corresponds to virtual
    address UADDR in PD.  Returns the kernel virtual address
    corresponding to that physical address, or a null pointer if
    UADDR is unmapped. */

@@ -286,7 +286,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, char **arg_holder, int arg_count);
+static bool setup_stack (void **esp, char **arg_holder, int arg_count, struct file *file);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -415,7 +415,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp, arg_holder, arg_count))
+  if (!setup_stack (esp, arg_holder, arg_count, file))
     goto done;
 
   /* Start address. */
@@ -451,7 +451,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
+static bool install_page (void *upage, void *kpage, bool writable, struct file *file);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -543,7 +543,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
       /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
+      if (!install_page (upage, kpage, writable, file)) 
         {
           palloc_free_page (kpage);
           return false; 
@@ -560,7 +560,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp, char **arg_holder, int arg_count) 
+setup_stack (void **esp, char **arg_holder, int arg_count, struct file *file) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -569,7 +569,7 @@ setup_stack (void **esp, char **arg_holder, int arg_count)
   //kpage = palloc_get_page (0);
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true, file);
       if (success)
       {
         frame_add(kpage);
@@ -657,12 +657,12 @@ setup_stack (void **esp, char **arg_holder, int arg_count)
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
 static bool
-install_page (void *upage, void *kpage, bool writable)
+install_page (void *upage, void *kpage, bool writable, struct file *file)
 {
   struct thread *t = thread_current ();
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable));
+          && pagedir_set_page (t->pagedir, upage, kpage, writable, file));
 }
