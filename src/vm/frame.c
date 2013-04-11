@@ -8,6 +8,67 @@
 #include "threads/thread.h"
 
 
+void frame_init ()
+{
+  list_init(&frame_list);
+  lock_init(&frame_lock);
+}
+
+void* new_frame ()
+{
+  lock_acquire(&frame_lock);
+  void* new_frame = palloc_get_page (PAL_USER);
+  
+  if (new_frame != NULL)
+  {
+    sup_page_add (new_frame);
+    
+    struct frame* f;
+    f->v_addr = new_frame;
+    f->p_addr = new_frame;
+    f->owner = thread_current ();
+    list_push_back (&frame_list, &f->frame_elem);
+    
+    lock_release(&frame_lock);
+    return f->p_addr;
+  }
+  else
+  {
+    PANIC ("Evict frame");
+    
+  }
+  
+  lock_release(&frame_lock);
+  return ;  // NEEDS TO BE CHANGED!!!!!!!!
+}
+
+/*
+void* get_frame (void *pg)
+{
+  lock_acquire(&frame_lock);
+  void* new_frame = palloc_get_page (PAL_USER);
+  
+  if (new_frame != NULL)
+  {
+    struct frame* f;
+    f->v_addr = pg;
+    f->p_addr = new_frame;
+    f->owner = thread_current ();
+    list_push_back (&frame_list, &f->frame_elem);
+    
+    lock_release(&frame_lock);
+    return f->p_addr;
+  }
+  else
+  {
+    // Evict frame
+    
+    get_frame (pg);
+  }
+  lock_release(&frame_lock);
+  return ;  // NEEDS TO BE CHANGED!!!!!!!!
+}
+
 
 void frame_init (int num_frames)
 {
@@ -60,3 +121,5 @@ void* frame_add (void *pg)
   lock_release(&frame_lock);
   return ;  // NEEDS TO BE CHANGED!!!!!!!!
 }
+
+*/

@@ -18,7 +18,7 @@ static struct list frame_list;
 static struct lock frame_lock;
 static int frame_left;
 
-void frame_init (int);
-void* frame_add (void*);
+void frame_init ();
+void* new_frame ();
 
 #endif
