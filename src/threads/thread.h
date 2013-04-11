@@ -113,7 +113,8 @@ struct thread
     int exit_status;                    /* Stores thread exit status */
     struct file* executable;            /* Stores the executable that made the
                                            thread */
-    void *esp_context;                   /* Saves the esp on context switch */
+    //void *esp_context;                   /* Saves the esp on context switch */
+    int stack_pages;
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

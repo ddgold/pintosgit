@@ -12,6 +12,7 @@
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
+
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
 
@@ -183,39 +184,26 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
   kill (f);
   */
+
+  struct thread *t = thread_current();
   
-  //PANIC ("page faulting, adding to frame table");
-  printf("fault address: %x\n", fault_addr);
+  //PANIC("fault: %x\n", fault_addr);
   
-  printf("f->esp: %x\n", f->esp);
-  //printf("f->ebp 1: %x\n", f->ebp);
-  if(fault_addr - f->esp > 0 && is_user_vaddr(fault_addr))
+  if (((fault_addr - f->esp >= 0 && fault_addr - f->esp <= PGSIZE) 
+      || fault_addr - f->esp == -4 
+      || fault_addr - f->esp == -32)
+      && is_user_vaddr(fault_addr))
   {
-    //Change this to get a free frame from the frame table
-    void *temp = palloc_get_page(PAL_USER);
-    f->ebp = pg_round_down(f->ebp);// - PGSIZE;
-    f->esp = f->ebp;
-    printf("f->ebp 2: %x\n", f->ebp);
-    printf("PGSIZE: %d\n", PGSIZE);
-    bool a = install_page(f->ebp, temp, 1);
+    void* new_page = new_frame ();
+    
+    void* new_addr = pg_round_down(f->ebp) - (t->stack_pages * PGSIZE);
+    t->stack_pages++;
+    bool success = install_page(new_addr, new_page, 1);
   }
-  else if(f->esp - fault_addr < 32)
-  {
-  
-  }
-  else if(f->esp - fault_addr < 4)
-  {
-  
-  }
-  
+
   else
   {
-    //void *temp = sup_page_search(&fault_addr);
-    kill(f);
-    return;
-    frame_add (fault_addr);
+    kill (f);
   }
-  //kill(f);
-  return;
 }
 

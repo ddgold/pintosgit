@@ -34,7 +34,7 @@ void print_list ()
       i++;
     }
 }
-
+/*
 void* sup_page_search (void *fault_addr)
 {
    struct list_elem *e;
@@ -58,3 +58,4 @@ void* sup_page_search (void *fault_addr)
       
     }
 }
+*/
