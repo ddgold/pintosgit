@@ -21,7 +21,7 @@ void frame_init (int num_frames)
   {
     f = (struct frame*) malloc (sizeof (struct frame));
     f->v_addr = NULL;
-    f->p_addr = palloc_get_page (PAL_ZERO | PAL_USER);
+    f->p_addr = palloc_get_page (PAL_USER);
     f->owner = NULL;
     list_push_back (&frame_list, &f->frame_elem);
 
@@ -46,14 +46,16 @@ void* frame_add (void *pg)
         f->v_addr = pg;
         f->owner = t;
         --frame_left;
+        memcpy(f->p_addr, f->v_addr, PGSIZE);
         lock_release(&frame_lock);
+        printf(" f->p_addr: %x\n",  f->p_addr);
         return f->p_addr;
       }
     }
   }
-  else                  // Frame table full, swap frame
+  else // Frame table full, swap frame
   {
-    PANIC("OH SHIT!");
+    //Swap here.
   }
   lock_release(&frame_lock);
   return ;  // NEEDS TO BE CHANGED!!!!!!!!

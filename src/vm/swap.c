@@ -1,5 +1,5 @@
 
-
+/*
 void swap_init ()
 {
   &swap_block->BLOCK_SWAP;
@@ -11,3 +11,4 @@ bool evict ()
 {
   
 }
+*/

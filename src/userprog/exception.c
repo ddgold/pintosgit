@@ -5,7 +5,9 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/palloc.h"
+
 #include "threads/vaddr.h"
+#include "userprog/process.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -109,6 +111,25 @@ kill (struct intr_frame *f)
       thread_exit ();
     }
 }
+/* Adds a mapping from user virtual address UPAGE to kernel
+   virtual address KPAGE to the page table.
+   If WRITABLE is true, the user process may modify the page;
+   otherwise, it is read-only.
+   UPAGE must not already be mapped.
+   KPAGE should probably be a page obtained from the user pool
+   with palloc_get_page().
+   Returns true on success, false if UPAGE is already mapped or
+   if memory allocation fails. */
+static bool
+install_page (void *upage, void *kpage, bool writable)
+{
+  struct thread *t = thread_current ();
+
+  /* Verify that there's not already a page at that virtual
+     address, then map our page there. */
+  return (pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
 
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
@@ -154,17 +175,47 @@ page_fault (struct intr_frame *f)
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
   
-  
+  /*
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
+  */
   
-
   //PANIC ("page faulting, adding to frame table");
-  //frame_add (fault_addr);
+  printf("fault address: %x\n", fault_addr);
   
+  printf("f->esp: %x\n", f->esp);
+  //printf("f->ebp 1: %x\n", f->ebp);
+  if(fault_addr - f->esp > 0 && is_user_vaddr(fault_addr))
+  {
+    //Change this to get a free frame from the frame table
+    void *temp = palloc_get_page(PAL_USER);
+    f->ebp = pg_round_down(f->ebp);// - PGSIZE;
+    f->esp = f->ebp;
+    printf("f->ebp 2: %x\n", f->ebp);
+    printf("PGSIZE: %d\n", PGSIZE);
+    bool a = install_page(f->ebp, temp, 1);
+  }
+  else if(f->esp - fault_addr < 32)
+  {
+  
+  }
+  else if(f->esp - fault_addr < 4)
+  {
+  
+  }
+  
+  else
+  {
+    //void *temp = sup_page_search(&fault_addr);
+    kill(f);
+    return;
+    frame_add (fault_addr);
+  }
+  //kill(f);
+  return;
 }
 
