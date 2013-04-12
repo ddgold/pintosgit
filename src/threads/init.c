@@ -128,7 +128,7 @@ main (void)
   
   
   /* ADDED: Initialize frame table */
-  frame_init (20);
+  frame_init ();
   page_init ();
   
   
