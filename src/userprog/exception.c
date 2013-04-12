@@ -184,18 +184,16 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
   kill (f);
   */
+  
+  
 
   struct thread *t = thread_current();
-  
-  //PANIC("fault: %x\n", fault_addr);
-  
   if (((fault_addr - f->esp >= 0 && fault_addr - f->esp <= PGSIZE) 
       || fault_addr - f->esp == -4 
       || fault_addr - f->esp == -32)
       && is_user_vaddr(fault_addr))
   {
     void* new_page = new_frame ();
-    
     void* new_addr = pg_round_down(f->ebp) - (t->stack_pages * PGSIZE);
     t->stack_pages++;
     bool success = install_page(new_addr, new_page, 1);
@@ -203,6 +201,7 @@ page_fault (struct intr_frame *f)
 
   else
   {
+    PANIC ("WE FUCKED UP\n");
     kill (f);
   }
 }

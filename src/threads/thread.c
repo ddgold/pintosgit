@@ -292,10 +292,11 @@ thread_exit (void)
   
   ASSERT (!intr_context ());
   
+  exit_sup_table ();
+  
 #ifdef USERPROG
   process_exit ();
 #endif
-  
    
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us

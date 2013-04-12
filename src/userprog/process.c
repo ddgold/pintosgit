@@ -19,6 +19,9 @@
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
 
+#include "devices/block.h"
+#include <list.h>
+
 #include "vm/frame.h"
 #include "vm/page.h"
 
@@ -447,8 +450,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
     file_close (file);
   }
   
-  evict ();
-  PANIC ("what...\n");
+  //evict ();
+  //PANIC ("what...");
   
   return success;
 }
@@ -541,7 +544,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
-          remove_frame (kpage);
+          remove_sup_table (kpage, 0);
           return false; 
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -549,7 +552,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable, file)) 
         {
-          remove_frame (kpage);
+          remove_sup_table (kpage, 0);
           return false; 
         }
 
@@ -644,7 +647,7 @@ setup_stack (void **esp, char **arg_holder, int arg_count, struct file *file)
       }
       else
       {
-        remove_frame (kpage);
+        remove_sup_table (kpage, 0);
       }
     }
     

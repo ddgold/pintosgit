@@ -48,6 +48,11 @@ block_type_name (enum block_type type)
   return block_type_names[type];
 }
 
+int num_blocks ()
+{
+  return list_size (&all_blocks);
+}
+
 /* Returns the block device fulfilling the given ROLE, or a null
    pointer if no block device has been assigned that role. */
 struct block *

@@ -4,6 +4,7 @@
 #include <thread.h>
 #include <list.h>
 #include "threads/synch.h"
+#include "vm/swap.h"
 
 struct frame
 {
