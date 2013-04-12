@@ -101,8 +101,6 @@ bool
 pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable, struct file *file)
 {
   uint32_t *pte;
-  struct page *pg;
-
   
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (pg_ofs (kpage) == 0);
@@ -116,13 +114,6 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable, struct 
     {
       ASSERT ((*pte & PTE_P) == 0);
       *pte = pte_create_user (kpage, writable);
-      pg = malloc(sizeof (struct page));
-      //Adds the pte to the page struct.
-      pg->pte_num = *pte;
-      pg->v_addr = upage;
-      pg->p_addr = kpage;
-      pg->file = file;
-      sup_page_add(pg);
       return true;
     }
   else
