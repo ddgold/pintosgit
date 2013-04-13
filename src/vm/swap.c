@@ -37,3 +37,4 @@ struct bitmap* get_bitmap ()
 {
   return swap_bitmap;
 }
+

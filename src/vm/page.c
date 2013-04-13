@@ -76,9 +76,30 @@ struct page* sup_page_search (void *v_addr)
   {
     p = list_entry (e, struct page, page_elem);
     
+    //printf ("Owner: %s, OnDisk %d, v_addr %x, sector_index %d\n", p->owner->name, p->onDisk, p->v_addr, p->sector_index);
+    if(p->v_addr == v_addr)
+    {
+      lock_release (&page_lock);
+      return p;
+    }
+  }
+  lock_release (&page_lock);
+  return NULL;
+}
+
+int sup_find_sector (void *v_addr)
+{
+  lock_acquire (&page_lock);
+  struct list_elem *e;
+  struct page *p;
+  for (e = list_begin (&page_list); e != list_end (&page_list); e = list_next (e))
+  {
+    p = list_entry (e, struct page, page_elem);
+    
     printf ("Owner: %s, OnDisk %d, v_addr %x, sector_index %d\n", p->owner->name, p->onDisk, p->v_addr, p->sector_index);
     if(p->v_addr == v_addr)
     {
+      PANIC("Found");
       lock_release (&page_lock);
       return p;
     }
