@@ -26,13 +26,6 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //printf("stack grower: %x - %x\n", PHYS_BASE, f->esp);
-  
-  if ((int)PHYS_BASE - (int)f->esp > 3000 && (int)PHYS_BASE - (int)f->esp < 5000)
-  {
-    
-  }
-  
   if (!valid_pointer (&f->esp))
   {
     exit (-1);

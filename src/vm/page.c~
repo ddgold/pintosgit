@@ -1,83 +1,64 @@
 #include "vm/page.h"
-#include <stdbool.h>
-#include <stddef.h>
-#include <string.h>
-#include "threads/init.h"
-#include "threads/thread.h"
-#include "threads/vaddr.h"
-#include "threads/pte.h"
 
+// Initializes page_list and page_lock
 void page_init ()
 {
   list_init (&page_list);
   lock_init (&page_lock);
 }
 
-void* sup_page_add (void* pg)
+// Add page to page list mapping upage to kpage
+void add_page (void* kpage, void* upage)
 {
-  struct page *new_page = (struct page*) (malloc (sizeof(struct page)));
-  new_page->owner = thread_current ();
-  new_page->onDisk = 0;
-  new_page->v_addr = pg;
-  new_page->p_addr = pg;
-  new_page->sector_index = -1;
+  lock_acquire(&page_lock);
+  struct page* p = (struct page*) (malloc (sizeof (struct page)));
+  p->owner = thread_current ();
   
-  //printf("Add Page, Owner = %s, p_addr = %x, v_addr = %x\n", new_page->owner->name, new_page->v_addr, new_page->p_addr);
+  p->onDisk = 0;
   
-  list_push_back (&page_list, &new_page->page_elem);
+  p->v_addr = upage;
+  p->p_addr = kpage;
+  
+  p->swap_index = -1;
+  
+  list_push_back (&page_list, &p->page_elem);
+  lock_release (&page_lock);
 }
 
-bool remove_sup_table (void* pg, bool inExit)
+// Removes page from page list
+void remove_page (void* upage)
 {
-  if (!inExit)
-  {
-    lock_acquire (&page_lock);
-  }
-  struct list_elem* e;
+  lock_acquire(&page_lock);
   struct page* p;
-  
-  
+  struct list_elem* e;
   for (e = list_begin (&page_list); e != list_end (&page_list); e = list_next (e))
   {
     p = list_entry (e, struct page, page_elem);
     
-    if (p->v_addr == pg)
+    if (p->v_addr == upage)
     {
-      //printf("Remove spe, Owner = %s, p_addr = %x, sector_index = %d", p->owner->name, p->p_addr, p->sector_index);
+      list_remove (e);
       if (p->onDisk)
       {
-        PANIC ("REMOVE FROM DISK");
+        swap_remove (p->swap_index);
       }
-      else
-      {
-        remove_frame (p->v_addr);
-        palloc_free_page (p->v_addr);
-      }
-      list_remove (e);
-      if (!inExit)
-      {
-        lock_release (&page_lock);
-      }
-      return 1;
+      break;
     }
   }
-  if (!inExit)
-  {
-    lock_release (&page_lock);
-  }
+  lock_release (&page_lock);
 }
 
-struct page* sup_page_search (void *v_addr)
+// Returns the page that contains upage
+struct page* get_page (void* upage)
 {
-  lock_acquire (&page_lock);
-  struct list_elem *e;
-  struct page *p;
+  lock_acquire(&page_lock);
+  struct page* p;
+  struct list_elem* e;
   for (e = list_begin (&page_list); e != list_end (&page_list); e = list_next (e))
   {
     p = list_entry (e, struct page, page_elem);
     
-    //printf ("Owner: %s, OnDisk %d, v_addr %x, sector_index %d\n", p->owner->name, p->onDisk, p->v_addr, p->sector_index);
-    if(p->v_addr == v_addr)
+    if (p->v_addr == upage)
     {
       lock_release (&page_lock);
       return p;
@@ -87,72 +68,27 @@ struct page* sup_page_search (void *v_addr)
   return NULL;
 }
 
-int sup_find_sector (void *v_addr)
+void print_page ()
 {
-  lock_acquire (&page_lock);
-  struct list_elem *e;
-  struct page *p;
+  lock_acquire(&page_lock);
+  struct page* p;
+  struct list_elem* e;
+  int count;
+  int mem;
+  int disk;
   for (e = list_begin (&page_list); e != list_end (&page_list); e = list_next (e))
   {
-    p = list_entry (e, struct page, page_elem);
     
-    printf ("Owner: %s, OnDisk %d, v_addr %x, sector_index %d\n", p->owner->name, p->onDisk, p->v_addr, p->sector_index);
-    if(p->v_addr == v_addr)
-    {
-      PANIC("Found");
-      lock_release (&page_lock);
-      return p;
-    }
-  }
-  lock_release (&page_lock);
-  return NULL;
-}
-
-void exit_sup_table ()
-{
-  lock_acquire (&page_lock);
-  
-  struct list_elem *e;
-  struct page *p;
-  char * thread_name = thread_current()->name;
-  
-  for (e = list_front (&page_list); e != list_end (&page_list); e = list_next (e))
-  {
     p = list_entry (e, struct page, page_elem);
+    printf ("Owner: %s, onDisk %d, v_addr: %x, p_addr %x, swap_index %d\n", 
+          p->owner->name, p->onDisk, p->v_addr, p->p_addr, p->swap_index );
+    ++count;
+    if (p->onDisk)
+      ++disk;
+    else
+      ++mem;
     
-    if (p->owner->name == thread_name)
-    {
-      if (p->onDisk)
-      {
-        struct bitmap *swap_bitmap = get_bitmap ();
-        //printf("Size: %d  Index %d\n", bitmap_size (swap_bitmap), p->sector_index);
-        bitmap_set_multiple (swap_bitmap, p->sector_index, 7, 0);
-      }
-      else
-      {
-        remove_frame (p->v_addr);
-      }
-      list_remove (e);
-    }
   }
-  
+  printf ("Page Count: %d, Memory: %d, Disk: %d\n", count, mem, disk);
   lock_release (&page_lock);
 }
-
-
-/*
-void print_list ()
-{
-    struct list_elem *e;
-    int i = 1;
-    for (e = list_begin (&page_list); e != list_end (&page_list);
-       e = list_next (e))
-    {
-      struct page *p = list_entry (e, struct page, page_elem);
-      printf("pte %d: v:%x - p:%x\n", i, p->v_addr, p->p_addr);
-      i++;
-    }
-}
-
-
-*/

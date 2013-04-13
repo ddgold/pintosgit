@@ -1,8 +1,19 @@
+#ifndef VM_SWAP_H
+#define VM_SWAP_H
+
+#include <stdio.h>
+#include <bitmap.h>
 #include "devices/block.h"
-#include "lib/kernel/bitmap.h"
-#include <list.h>
 #include "threads/synch.h"
 
-static struct bitmap *swap_bitmap;
-static struct lock swap_lock;
-//static struct block *swap_block;
+struct block *swap_block;
+struct bitmap *swap_bitmap;
+struct lock swap_lock;
+
+void swap_init ();
+int get_sector ();
+void swap_out (int, void*);
+void swap_in (int, void*);
+void swap_remove (int);
+
+#endif

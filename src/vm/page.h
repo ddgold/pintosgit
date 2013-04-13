@@ -1,33 +1,34 @@
 #ifndef VM_PAGE_H
 #define VM_PAGE_H
 
-#include <thread.h>
+#include <stdio.h>
 #include <list.h>
+#include "threads/thread.h"
 #include "threads/synch.h"
+
 #include "vm/swap.h"
 
 struct page
 {
-  char *name;               /*holds name for debuggin purposes*/
-  struct thread *owner;     /*the thread that owns the page */
+  struct thread *owner;         /* The thread that owns the page */
   
-  bool onDisk;              /* TRUE if on disl, FALSE else */  
+  bool onDisk;                  /* TRUE if on disk, FALSE else */  
   
-  void* v_addr;             /*holds the virtual address of the page */
-  void* p_addr;             /*the page's physical address*/
-  void* sector_index;       /* Holds the sector index if on swap disk */
-  uint32_t pte_num;         /*the pte for the page */
+  void* v_addr;                 /* The virtual address of the page */
+  void* p_addr;                 /* The physical address of the page */
   
-  struct list_elem page_elem;
-  struct file *file;        /* holds the executable file for that page */
+  unsigned int swap_index;      /* The index for the sector containing the page */
+  
+  struct list_elem page_elem;   /* List element for page_list */
 };
 
-static struct list page_list;
-static struct lock page_lock;
+struct list page_list;
+struct lock page_lock;
 
-void frame_init ();
-void* sup_page_add (void*);
-bool remove_sup_table (void*, bool);
-struct page* sup_page_search (void*);
-int sup_find_sector(void*);
+void page_init ();
+void add_page (void*, void*);
+void remove_page (void*);
+struct page* get_page (void*);
+void print_page ();
+
 #endif
