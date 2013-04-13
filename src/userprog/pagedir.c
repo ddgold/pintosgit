@@ -6,7 +6,6 @@
 #include "threads/pte.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
-#include "vm/page.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
@@ -42,7 +41,7 @@ pagedir_destroy (uint32_t *pd)
         uint32_t *pte;
         
         for (pte = pt; pte < pt + PGSIZE / sizeof *pte; pte++)
-          if (*pte & PTE_P)
+          if (*pte & PTE_P) 
             palloc_free_page (pte_get_page (*pte));
         palloc_free_page (pt);
       }
@@ -98,16 +97,16 @@ lookup_page (uint32_t *pd, const void *vaddr, bool create)
    Returns true if successful, false if memory allocation
    failed. */
 bool
-pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable, struct file *file)
+pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
 {
   uint32_t *pte;
-  
+
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (pg_ofs (kpage) == 0);
   ASSERT (is_user_vaddr (upage));
   ASSERT (vtop (kpage) >> PTSHIFT < init_ram_pages);
   ASSERT (pd != init_page_dir);
-  
+
   pte = lookup_page (pd, upage, true);
 
   if (pte != NULL) 
@@ -120,7 +119,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable, struct 
     return false;
 }
 
-/* Looks up the physical address that corresponds to virtual
+/* Looks up the physical address that corresponds to user virtual
    address UADDR in PD.  Returns the kernel virtual address
    corresponding to that physical address, or a null pointer if
    UADDR is unmapped. */
@@ -270,7 +269,7 @@ invalidate_pagedir (uint32_t *pd)
     3) The pointer is not null */
 bool valid_pointer (void *p)
 {
-
   uint32_t *mapped = lookup_page (active_pd (), *(int *)p, false);
-  return (mapped != 0) && (*(int *)p < PHYS_BASE) && (*(int *)p != NULL);
+  return (mapped != 0) && (*(int *)p < PHYS_BASE) && (*(int *)p != NULL) 
+              && (get_page (pg_round_down (*(int *) p)) != NULL);
 }

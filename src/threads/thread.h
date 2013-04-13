@@ -110,16 +110,15 @@ struct thread
     struct semaphore reap_sema;         /* Used to ensure child thread is still
                                            alive when parent reaps it */
     
+    int stack_pages;                    /* Holds the number of stack pages */
+    
     int exit_status;                    /* Stores thread exit status */
     struct file* executable;            /* Stores the executable that made the
                                            thread */
-    //void *esp_context;                   /* Saves the esp on context switch */
-    int stack_pages;
     
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    
 #endif
 
     /* Owned by thread.c. */

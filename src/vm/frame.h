@@ -4,23 +4,23 @@
 #include <thread.h>
 #include <list.h>
 #include "threads/synch.h"
-#include "vm/swap.h"
+#include "threads/palloc.h"
 
 struct frame
 {
-  void* v_addr;
-  void* p_addr;
-  struct thread *owner;
-  struct list_elem frame_elem;
-  char *name; //name of thread owner for debugging
+  struct thread *owner;         /* The frames current owner */
+  
+  void* v_addr;                 /* The virtual address of the frame */
+  void* p_addr;                 /* The physical address of the frame */
+  
+  struct list_elem frame_elem;  /* List element for frame_list */
 };
 
-static struct list frame_list;
-static struct lock frame_lock;
+struct list frame_list;
+struct lock frame_lock;
 
 void frame_init ();
-void* new_frame ();
+void* add_frame (void*);
+void remove_frame (void*);
 void* evict ();
-bool remove_frame (void*);
-
 #endif

@@ -1,100 +1,107 @@
 #include "vm/frame.h"
-#include "threads/loader.h"
-#include "threads/palloc.h"
-#include <stdio.h>
-#include <list.h>
-#include <vm/page.h>
+#include "vm/swap.h"
+#include "vm/page.h"
 #include "threads/vaddr.h"
-#include "threads/thread.h"
-#include "devices/block.h"
 
-
+// Initializes frame_list and frame_lock
 void frame_init ()
 {
   list_init(&frame_list);
   lock_init(&frame_lock);
 }
 
-void* new_frame ()
+// Pallocs a new user page and installs upage, or if full evitcts a frame
+void* add_frame (void* upage)
 {
   lock_acquire(&frame_lock);
-  void* n_frame = palloc_get_page (PAL_USER | PAL_ZERO);
-
-  if (n_frame != NULL)
+  
+  void* kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  
+  if (kpage == NULL)    // No free frames, so evict oldest frame
   {
-    sup_page_add (n_frame);
-    
-    struct frame* f = (struct frame*) (malloc (sizeof(struct frame)));
-    f->v_addr = n_frame;
-    f->p_addr = n_frame;
-    f->owner = thread_current ();
-    list_push_back (&frame_list, &f->frame_elem);
-    //printf("Add Frame, Owner = %s, p_addr = %x, v_addr = %x\n", f->owner->name, f->v_addr, f->p_addr);
-    
-    lock_release(&frame_lock);
-    return f->p_addr;
-  }
-  else
-  {
-    evict ();
-    lock_release(&frame_lock);
-    return new_frame ();
+    kpage = evict ();
   }
   
-  lock_release(&frame_lock);
-  return ;  // NEEDS TO BE CHANGED!!!!!!!!
+  struct frame* f = (struct frame*) (malloc (sizeof (struct frame)));
+  f->owner = thread_current ();
+
+  f->v_addr = upage;
+  f->p_addr = kpage;
+
+  list_push_back (&frame_list, &f->frame_elem);
+  lock_release (&frame_lock);
+  
+  return kpage;
 }
 
-void * evict ()
+// Removes page from frame list and frees page
+void remove_frame (void* kpage)
 {
-  struct list_elem *e = list_front (&frame_list);
-  struct frame *oldest_frame = list_entry (e, struct frame, frame_elem);
-  struct page *pg = sup_page_search (oldest_frame->v_addr);
-  
-  int index = swap_index ();
-  struct block *swap_block = block_get_role (BLOCK_SWAP);
-  
-  int i;
-  void* temp_addr;
-  for (i = 0; i < 8; ++i)
-  {
-    temp_addr = pg->v_addr;
-    block_write (swap_block, (index * 8) + i, temp_addr);
-    temp_addr += (PGSIZE / 8);
-  }
-  
-  list_remove (e);
-  
-  void * return_value = (pg->v_addr);
-
-  //pagedir_clear_page (thread_current()->pagedir, vtop(pg->v_addr));  
-  palloc_free_page (pg->v_addr);
-
-  pg->onDisk = 1;
-  pg->sector_index = index;
-  pg->v_addr = vtop(return_value);
-  pg->p_addr = NULL;
-  
-  return 1;
-}
-
-bool remove_frame (void* pg)
-{
-  lock_acquire (&frame_lock);
-  
-  struct list_elem* e;
+  lock_acquire(&frame_lock);
   struct frame* f;
+  struct list_elem* e;
   for (e = list_begin (&frame_list); e != list_end (&frame_list); e = list_next (e))
   {
     f = list_entry (e, struct frame, frame_elem);
     
-    if (f->v_addr == pg)
+    if (f->p_addr == kpage)
     {
       //printf("Remove Frame, Owner = %s, p_addr = %x, v_addr = %x\n", f->owner->name, f->v_addr, f->p_addr);
+      
+      pagedir_clear_page (f->owner->pagedir, f->v_addr);
       list_remove (e);
-      lock_release (&frame_lock);
-      return 1;
+      break;
     }
   }
   lock_release (&frame_lock);
 }
+
+// Finds oldest frame and evicts it
+void* evict ()
+{
+  struct list_elem* e = list_pop_front (&frame_list);
+  struct frame *f = list_entry (e, struct frame, frame_elem);
+  struct page *p = get_page (f->v_addr);
+  
+  void* kpage = p->p_addr;
+  
+  // Set onDisk and unmap p_addr
+  p->onDisk = 1;
+  p->p_addr = NULL;
+  p->swap_index = get_sector ();
+  
+  // Write page to disk
+  swap_out (p->swap_index, p->v_addr);
+  
+  // Free frame
+  palloc_free_page(kpage);
+  pagedir_clear_page (f->owner->pagedir, f->v_addr);
+  list_remove (e);
+  
+  return palloc_get_page (PAL_USER | PAL_ZERO);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -41,8 +41,6 @@ enum block_type
 
 const char *block_type_name (enum block_type);
 
-int num_blocks (); // ADDED: Returns size of all_blocks
-
 /* Finding block devices. */
 struct block *block_get_role (enum block_type);
 void block_set_role (enum block_type, struct block *);
