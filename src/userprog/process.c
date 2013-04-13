@@ -302,6 +302,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+  
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -331,7 +332,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   
   /* Allocate and activate page directory. */
-  t->pagedir = pagedir_create ();
+  t->pagedir = pagedir_create ();  
+  
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
@@ -450,8 +452,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     file_close (file);
   }
   
-  //evict ();
-  //PANIC ("what...");
+  
   
   return success;
 }

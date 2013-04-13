@@ -29,4 +29,5 @@ void frame_init ();
 void* sup_page_add (void*);
 bool remove_sup_table (void*, bool);
 struct page* sup_page_search (void*);
+int sup_find_sector(void*);
 #endif

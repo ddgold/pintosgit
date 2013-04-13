@@ -20,7 +20,7 @@ static struct lock frame_lock;
 
 void frame_init ();
 void* new_frame ();
-bool evict ();
+void* evict ();
 bool remove_frame (void*);
 
 #endif

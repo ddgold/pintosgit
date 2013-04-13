@@ -201,8 +201,14 @@ page_fault (struct intr_frame *f)
 
   else
   {
-    PANIC ("WE FUCKED UP\n");
-    kill (f);
+    printf("Fault addr: %d\n", fault_addr );
+    printf("Fault addr round up: %d\n", pg_round_down(fault_addr) );
+    //printf("Fault addr vtop round up: %d\n", vtop(pg_round_down(fault_addr)) );
+    sup_find_sector( pg_round_up(fault_addr) );
+    
+    PANIC ("FAIL");
+    
+    kill(f);
   }
 }
 

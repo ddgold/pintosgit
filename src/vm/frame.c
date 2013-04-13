@@ -18,14 +18,15 @@ void frame_init ()
 void* new_frame ()
 {
   lock_acquire(&frame_lock);
-  void* new_frame = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (new_frame != NULL)
+  void* n_frame = palloc_get_page (PAL_USER | PAL_ZERO);
+
+  if (n_frame != NULL)
   {
-    sup_page_add (new_frame);
+    sup_page_add (n_frame);
     
     struct frame* f = (struct frame*) (malloc (sizeof(struct frame)));
-    f->v_addr = new_frame;
-    f->p_addr = new_frame;
+    f->v_addr = n_frame;
+    f->p_addr = n_frame;
     f->owner = thread_current ();
     list_push_back (&frame_list, &f->frame_elem);
     //printf("Add Frame, Owner = %s, p_addr = %x, v_addr = %x\n", f->owner->name, f->v_addr, f->p_addr);
@@ -36,21 +37,19 @@ void* new_frame ()
   else
   {
     evict ();
-    PANIC ("Evict this shit");
+    lock_release(&frame_lock);
+    return new_frame ();
   }
   
   lock_release(&frame_lock);
   return ;  // NEEDS TO BE CHANGED!!!!!!!!
 }
 
-bool evict ()
+void * evict ()
 {
   struct list_elem *e = list_front (&frame_list);
   struct frame *oldest_frame = list_entry (e, struct frame, frame_elem);
   struct page *pg = sup_page_search (oldest_frame->v_addr);
-  
-  sup_page_search (0);
-  printf("\n\n\n\n\n\n");
   
   int index = swap_index ();
   struct block *swap_block = block_get_role (BLOCK_SWAP);
@@ -66,14 +65,15 @@ bool evict ()
   
   list_remove (e);
   
+  void * return_value = (pg->v_addr);
+
+  //pagedir_clear_page (thread_current()->pagedir, vtop(pg->v_addr));  
   palloc_free_page (pg->v_addr);
+
   pg->onDisk = 1;
   pg->sector_index = index;
-  pg->v_addr = NULL;
+  //pg->v_addr = vtop(return_value);
   pg->p_addr = NULL;
-  
-  sup_page_search (0);
-  printf("\n\n\n\n\n\n");
   
   return 1;
 }
