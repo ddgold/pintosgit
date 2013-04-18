@@ -13,6 +13,16 @@ Indexed and Extensible Files
   - User programs can seek beyond EOF but the seek does not grow the file
     - Writing at a position past EOF extends teh file from the position being written.  the gap should be all zeroes
   - A read past EOF returns 0
+  
+  
+  
+  Ideas about how to implement Indexed and Extensible Files:
+    inode create
+      
+  
+  
+  
+  
 
 Subdirectories
   - Implement a hierarchical name space
