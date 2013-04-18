@@ -269,7 +269,7 @@ invalidate_pagedir (uint32_t *pd)
     3) The pointer is not null */
 bool valid_pointer (void *p)
 {
+
   uint32_t *mapped = lookup_page (active_pd (), *(int *)p, false);
-  return (mapped != 0) && (*(int *)p < PHYS_BASE) && (*(int *)p != NULL) 
-              && (get_page (pg_round_down (*(int *) p)) != NULL);
+  return (mapped != 0) && (*(int *)p < PHYS_BASE) && (*(int *)p != NULL);
 }

@@ -92,6 +92,7 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
   list_init (&process_list);
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -477,9 +478,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->fd_count = 2;
   t->parent = 0;
   t->exit_status = -1;
-  
-  t->stack_pages = 1;
-  
   list_init(&t->children);
   sema_init(&t->exit_sema, 0);
   sema_init(&t->sync_sema, 0);

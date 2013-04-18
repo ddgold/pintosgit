@@ -22,6 +22,9 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+
+#include "vm/frame.h" //added
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -37,10 +40,6 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
-
-#include "vm/frame.h"
-#include "vm/page.h"
-#include "vm/swap.h"
 
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
@@ -102,6 +101,7 @@ main (void)
   palloc_init (user_page_limit);
   malloc_init ();
   paging_init ();
+  
 
   
   /* Segmentation. */
@@ -119,8 +119,7 @@ main (void)
   exception_init ();
   syscall_init ();
 #endif
-  
-  
+
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
   serial_init_queue ();
@@ -133,11 +132,6 @@ main (void)
   filesys_init (format_filesys);
 #endif
 
-  /* Initialize virtual memory */
-  swap_init ();
-  page_init ();
-  frame_init ();
-  
   printf ("Boot complete.\n");
   
   /* Run actions specified on kernel command line. */

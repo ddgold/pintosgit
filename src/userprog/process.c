@@ -19,6 +19,8 @@
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
 
+#include "vm/frame.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -32,8 +34,6 @@ process_execute (const char *file_name)
 {
   char *fn_copy, *fn_temp;
   tid_t tid;
-  
-  
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -119,6 +119,8 @@ start_process (void *file_name_)
      arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
+  
+
   
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
@@ -530,8 +532,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = add_frame (upage);
-      add_page (kpage, upage);
+      uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
 
@@ -566,10 +567,7 @@ setup_stack (void **esp, char **arg_holder, int arg_count)
   uint8_t *kpage;
   bool success = false;
 
-  void* upage = PHYS_BASE - PGSIZE;
-  kpage = add_frame (upage);
-  add_page (kpage, upage);
-  
+  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);

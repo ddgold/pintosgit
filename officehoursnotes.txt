@@ -1,4 +1,0 @@
-- Ask about -q problem
-
-- Find thread by tid/pid
-  - looping through all theards?

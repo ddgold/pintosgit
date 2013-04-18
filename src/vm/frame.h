@@ -1,26 +1,23 @@
 #ifndef VM_FRAME_H
 #define VM_FRAME_H
 
+#include <vm/page.h>
 #include <thread.h>
 #include <list.h>
-#include "threads/synch.h"
-#include "threads/palloc.h"
 
 struct frame
 {
-  struct thread *owner;         /* The frames current owner */
-  
-  void* v_addr;                 /* The virtual address of the frame */
-  void* p_addr;                 /* The physical address of the frame */
-  
-  struct list_elem frame_elem;  /* List element for frame_list */
+  uint32_t v_addr;
+  uint32_t p_addr;
+  int isMapped;
+  struct thread *owner;
+  struct list_elem *frame_elem;
 };
 
-struct list frame_list;
-struct lock frame_lock;
+static struct list *frame_table;
+static int frame_table_left;
 
-void frame_init ();
-void* add_frame (void*);
-void remove_frame (void*);
-void* evict ();
+void frame_table_init (void);
+uint32_t* frame_table_add (struct page *);
+
 #endif
