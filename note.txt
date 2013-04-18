@@ -1,0 +1,38 @@
+Indexed and Extensible Files
+  - Extensible Files 
+    - Modify the on-disk inode structure to allow for extensible files
+    - that is, use and index structure with direct, indirect, and doubly indirect blocks
+    - this structure must not suffer from external fragmentation
+    - must support files as large as the partition (~8 MB partition) this requires us to implement doubly-indirect blocks
+    - Each inode is stored within one disk sector this limited the number of block pointers that it can contain
+    - Extent-based files can only grow if followed by empty space but indexed nodes make file growth possible whenever free space is available.
+  - Implementing File Growth
+    - Basic idea: file size is created and size is set  and expanded every time a write is made off the end of the file
+    - No limits on growth except for growing past the size of filesystem
+    - root directory should be allowed to expand beyond its inital limit of 16 files
+  - User programs can seek beyond EOF but the seek does not grow the file
+    - Writing at a position past EOF extends teh file from the position being written.  the gap should be all zeroes
+  - A read past EOF returns 0
+
+Subdirectories
+  - Implement a hierarchical name space
+  - Modify directories to be able to point to other directories
+  - Directories should be able to grow just like other files
+  - Path names must be able to be longer 14 characters
+  - Maintain a separate current directory for each process.
+    - At startup, set the root as the intial procceses current directory
+    - when a process starts another with exec(), the child inherits its parent's current directory
+    - after that processes are independet of their parnts
+  - Update existing system calls so that anywhere a file name is provided by the caller, an absolute or relative path name may be used
+  - Must support "." and ".."
+  - Update open() to open directories.
+  - Close needs to accept file descriptors for a directory
+  - update remove so it can delete empty directories (besides root) and regular files
+    - directories are empty only if they contain "." & ".."
+  - New System Calls:
+    - bool chdir (const char *dir)
+      - *dir can be relative or absolute, returns true on success, false on failure
+    - bool mkdir (const char *dir)
+      - creates relative or absolute directory *dir.  Fails if directory already exists or something i don't understand from reading this shit
+    - bool readdir (int fd, char *name)
+      - dir_readdir? directory.c
