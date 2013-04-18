@@ -4,11 +4,6 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "threads/vaddr.h"
-
-#include "vm/frame.h"
-#include "vm/swap.h"
-#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -113,26 +108,6 @@ kill (struct intr_frame *f)
     }
 }
 
-/* Adds a mapping from user virtual address UPAGE to kernel
-   virtual address KPAGE to the page table.
-   If WRITABLE is true, the user process may modify the page;
-   otherwise, it is read-only.
-   UPAGE must not already be mapped.
-   KPAGE should probably be a page obtained from the user pool
-   with palloc_get_page().
-   Returns true on success, false if UPAGE is already mapped or
-   if memory allocation fails. */
-static bool
-install_page (void *upage, void *kpage, bool writable)
-{
-  struct thread *t = thread_current ();
-
-  /* Verify that there's not already a page at that virtual
-     address, then map our page there. */
-  return (pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable));
-}
-
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
    also require modifying this code.
@@ -172,48 +147,15 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
-  
-  
-  struct thread *t = thread_current();
-  if (((fault_addr - f->esp >= 0 && fault_addr - f->esp <= PGSIZE) 
-      || fault_addr - f->esp == -4 
-      || fault_addr - f->esp == -32)
-      && is_user_vaddr(fault_addr))
-  {
-    void* upage = pg_round_down(f->ebp) - (t->stack_pages * PGSIZE);
-    void* kpage = add_frame (upage);
-    add_page (kpage, upage);
-    t->stack_pages++;
-    bool success = install_page(upage, kpage, 1);
-  }
-  else // if (fault_addr < PHYS_BASE)
-  {
-    //printf ("Fault has happened, %x (%x)\n", pg_round_down (fault_addr), fault_addr);
-    
-    struct page *p = get_page (pg_round_down (fault_addr));
-    
-    if (p != NULL)
-    {
-      void* kpage = add_frame (p->v_addr);
 
-      bool success = install_page(p->v_addr, kpage, 1);
-      
-      swap_in (p->swap_index, p->v_addr);
-
-      p->onDisk = 0;
-      p->p_addr = kpage; 
-      
-      p->swap_index = -1;
-    }
-    else
-    {
-      printf ("Page fault at %p: %s error %s page in %s context.\n",
-              fault_addr,
-              not_present ? "not present" : "rights violation",
-              write ? "writing" : "reading",
-              user ? "user" : "kernel");
-      kill (f);
-    }
-  }
+  /* To implement virtual memory, delete the rest of the function
+     body, and replace it with code that brings in the page to
+     which fault_addr refers. */
+  printf ("Page fault at %p: %s error %s page in %s context.\n",
+          fault_addr,
+          not_present ? "not present" : "rights violation",
+          write ? "writing" : "reading",
+          user ? "user" : "kernel");
+  kill (f);
 }
 

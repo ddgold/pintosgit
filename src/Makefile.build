@@ -75,7 +75,6 @@ filesys_SRC += filesys/fsutil.c		# Utilities.
 # VM code
 vm_SRC  = vm/frame.c
 vm_SRC += vm/page.c
-vm_SRC += vm/swap.c
 
 
 SOURCES = $(foreach dir,$(KERNEL_SUBDIRS),$($(dir)_SRC))
