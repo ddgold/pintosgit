@@ -9,6 +9,7 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
+#include "filesys/inode.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -293,6 +294,16 @@ int write (int fd, const void *buffer, unsigned size)
       if ( *(int *) &f->fd == fd )
       {
         lock_release(&write_lock);
+        
+        struct inode *in = *(int *) &f->inode;
+                
+        //printf("a: %d - b: %d\n", (size + *(int *)&f->pos), (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE));
+        if((size + *(int *)&f->pos) > (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE))
+        {
+          //printf("growing file\n");
+          add_sector(&in->data);
+        }
+        in->data.length = *(unsigned int *)&in->data.length + size;
         int test = file_write(f, *(int *)buffer, size);
         return test;
       }
