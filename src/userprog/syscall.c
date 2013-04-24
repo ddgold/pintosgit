@@ -297,14 +297,17 @@ int write (int fd, const void *buffer, unsigned size)
         
         struct inode *in = *(int *) &f->inode;
                 
-        //printf("a: %d - b: %d\n", (size + *(int *)&f->pos), (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE));
+        //printf("a: %d - b: %d - c: %d \n", (size + *(int *)&f->pos), (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE), in->data.length);
         if((size + *(int *)&f->pos) > (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE))
-        {
-          //printf("growing file\n");
+        {   
           add_sector(&in->data);
         }
-        in->data.length = *(unsigned int *)&in->data.length + size;
-        int test = file_write(f, *(int *)buffer, size);
+        if( in->data.length < (size + *(int *)&f->pos) )
+        {
+          in->data.length = *(int *)&f->pos + size;
+        }
+        
+        int test = file_write(f, *(int *)buffer, size);        
         return test;
       }
       f = list_entry (list_next(&f->open_file), struct file, open_file);    

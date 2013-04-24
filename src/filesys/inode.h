@@ -32,6 +32,7 @@ struct inode_disk
     //block_sector_t start;               /* First data sector. */
     off_t length;                         /* File size in bytes. */
     size_t sectors;                       /* length in sectors */
+   // block_sector_t disk_length;            /* keeps track of previous written sector */
     
     //Added: inode_block structure
     block_sector_t data_blocks[5];
