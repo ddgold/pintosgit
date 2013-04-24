@@ -90,7 +90,7 @@ bool add_sector(struct inode_disk *disk_inode)
     }
     
      //printf ("add_sector: %d\n", sector);
-    
+
     block_write (fs_device, sector, zeros);
     
     if (disk_inode->sectors < 5)
@@ -119,7 +119,7 @@ bool add_sector(struct inode_disk *disk_inode)
         {
           i_block->data_blocks[i] = -1;
         }
-        
+
         block_write (fs_device, i_block_sector, i_block);
         disk_inode->indirect_blocks[block_num] = i_block_sector;
       }
@@ -128,7 +128,7 @@ bool add_sector(struct inode_disk *disk_inode)
       block_sector_t* buffer = calloc (1, sizeof (struct indirect_block));
          
       block_read (fs_device, disk_inode->indirect_blocks[block_num], buffer);
-      buffer[block_index] = sector;
+      buffer[block_index] = sector;    
       block_write (fs_device, disk_inode->indirect_blocks[block_num], buffer);
 
     }
@@ -152,7 +152,7 @@ bool add_sector(struct inode_disk *disk_inode)
 
 bool remove_sectors (struct inode_disk *disk_inode)
   {
-    lock_acquire(&inode_lock);
+    //lock_acquire(&inode_lock);
     if(disk_inode->sectors > 6005)
       {
         PANIC("Too big...");
@@ -190,7 +190,7 @@ bool remove_sectors (struct inode_disk *disk_inode)
       }
     }
     
-    lock_release(&inode_lock);
+    //lock_release(&inode_lock);
     ASSERT(disk_inode->sectors == 0);
   }
 
@@ -250,6 +250,7 @@ inode_create (block_sector_t sector, off_t length)
       }
       
       block_write (fs_device, sector, disk_inode);
+      
       success = true;
       free (disk_inode);
     }
@@ -289,7 +290,9 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+  //printf("length before for sector %d: %d\n", inode->sector,inode->data.length);
   block_read (fs_device, inode->sector, &inode->data);
+  //printf("length after for sector %d: %d\n", inode->sector, inode->data.length);
   return inode;
 }
 
@@ -449,6 +452,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
           /* Write full sector directly to disk. */
+
           block_write (fs_device, sector_idx, buffer + bytes_written);
         }
       else 
@@ -469,6 +473,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
           else
             memset (bounce, 0, BLOCK_SECTOR_SIZE);
           memcpy (bounce + sector_ofs, buffer + bytes_written, chunk_size);
+
           block_write (fs_device, sector_idx, bounce);
         }
 
@@ -478,6 +483,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
     }
   free (bounce);
+
+  block_write (fs_device, inode->sector, &inode->data);
 
   return bytes_written;
 }
