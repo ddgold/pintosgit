@@ -152,7 +152,7 @@ bool add_sector(struct inode_disk *disk_inode)
 
 bool remove_sectors (struct inode_disk *disk_inode)
   {
-    //lock_acquire(&inode_lock);
+    lock_acquire(&inode_lock);
     if(disk_inode->sectors > 6005)
       {
         PANIC("Too big...");
@@ -190,7 +190,7 @@ bool remove_sectors (struct inode_disk *disk_inode)
       }
     }
     
-    //lock_release(&inode_lock);
+    lock_release(&inode_lock);
     ASSERT(disk_inode->sectors == 0);
   }
 

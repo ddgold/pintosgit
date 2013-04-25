@@ -5,17 +5,20 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
   {
     struct inode *inode;                /* Backing store. */
+    int fd;                             /* file descriptor */
     off_t pos;                          /* Current position. */
   };
 
 /* A single directory entry. */
 struct dir_entry 
   {
+    bool isSubDir;                      /* Is this a sub-directory? */
     block_sector_t inode_sector;        /* Sector number of header. */
     char name[NAME_MAX + 1];            /* Null terminated file name. */
     bool in_use;                        /* In use or free? */
@@ -34,9 +37,13 @@ dir_create (block_sector_t sector, size_t entry_cnt)
 struct dir *
 dir_open (struct inode *inode) 
 {
+  struct thread *t = thread_current();
   struct dir *dir = calloc (1, sizeof *dir);
   if (inode != NULL && dir != NULL)
     {
+    
+      dir->fd = t->fd_count;
+      t->fd_count++;
       dir->inode = inode;
       dir->pos = 0;
       return dir;
@@ -100,6 +107,8 @@ lookup (const struct dir *dir, const char *name,
 
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e) 
+  {
+    //printf("e.name: %s - is inuse?: %d\n", e.name, e.in_use);
     if (e.in_use && !strcmp (name, e.name)) 
       {
         if (ep != NULL)
@@ -108,6 +117,7 @@ lookup (const struct dir *dir, const char *name,
           *ofsp = ofs;
         return true;
       }
+  }
   return false;
 }
 
@@ -141,7 +151,7 @@ dir_lookup (const struct dir *dir, const char *name,
    Fails if NAME is invalid (i.e. too long) or a disk or memory
    error occurs. */
 bool
-dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
+dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool isSubDir)
 {
   struct dir_entry e;
   off_t ofs;
@@ -172,10 +182,12 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 
   /* Write slot. */
   e.in_use = true;
+  e.isSubDir = isSubDir;
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-
+  
+  
  done:
   return success;
 }
@@ -236,3 +248,29 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
     }
   return false;
 }
+
+
+
+struct dir *
+dir_isDir(struct dir *dir, char * name)
+{
+  struct dir_entry e;
+  size_t ofs;
+  
+  for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
+       ofs += sizeof e) 
+  {
+    if (strcmp (e.name, name))
+    {
+      return dir_open(inode_open(e.inode_sector));
+    }
+  }
+  
+  return NULL;
+}
+
+
+
+
+
+

@@ -57,8 +57,11 @@ process_execute (const char *file_name)
   
   // Set isParent bit
   struct thread *t = thread_current();
+  if(strcmp(t->name,"main") == 0) //If it's the main thread set the parent to root
+      t->cwd = dir_open_root();
   t->isParent = 1;
-     
+  
+  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
   
@@ -98,6 +101,7 @@ start_process (void *file_name_)
     if (parent->isParent == 1)
     {
       child->parent = parent;
+      child->cwd = parent->cwd;
       list_push_back(&parent->children, &child->child_elem);
       parent->isParent = 0;
       break;
