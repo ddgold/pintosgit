@@ -126,6 +126,12 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CLOSE:
       close (*(int *) arg0);
       break;
+    case SYS_CHDIR:
+      f->eax = chdir(*(int *) arg0);
+      break;
+    case SYS_MKDIR:
+      f->eax = mkdir(*(int *) arg0);
+      break;
     default:
       exit(-1);
       break;      
@@ -211,21 +217,32 @@ bool remove (const char *file)
 int open (const char *file)
 {
   struct thread *t = thread_current();
-  struct file *f = filesys_open(file);
-  //file_deny_write(&f);
-  
-  // If valid file, update fd and fd_count and add file to open_files list
-  if (f != NULL)
+  struct dir *dir = dir_isDir(t->cwd, file);
+  if (dir != NULL)
   {
-    list_push_back(&t->open_files, &f->open_file);
-    f->fd = t->fd_count;
-    t->fd_count++;
-    return f->fd;
+    dir_open(file);
   }
   else
   {
-    return -1;
-  }
+    
+
+    struct file *f = filesys_open(file);
+    
+    // If valid file, update fd and fd_count and add file to open_files list
+    if (f != NULL)
+    {
+      list_push_back(&t->open_files, &f->open_file);
+      f->fd = t->fd_count;
+      t->fd_count++;
+      return f->fd;
+    }
+    else
+    {
+      
+      return -1;
+    }
+  }  
+
 }
 
 // --------
@@ -233,6 +250,7 @@ int open (const char *file)
 // --------
 int filesize (int fd)
 { 
+
   struct file *f = find_file (fd);
   int length = file_length (f);
   return length;
@@ -294,14 +312,20 @@ int write (int fd, const void *buffer, unsigned size)
       if ( *(int *) &f->fd == fd )
       {
         lock_release(&write_lock);
-        
+               
         struct inode *in = *(int *) &f->inode;
+        
+        if(isdir(fd))
+          {
+            exit(-1);
+          }
                 
         //printf("a: %d - b: %d - c: %d \n", (size + *(int *)&f->pos), (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE), in->data.length);
         if((size + *(int *)&f->pos) > (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE))
         {   
           add_sector(&in->data);
         }
+        
         if( in->data.length < (size + *(int *)&f->pos) )
         {
           in->data.length = *(int *)&f->pos + size;
@@ -351,4 +375,49 @@ void close (int fd)
   list_remove(&f->open_file);
   sema_up(&close_sema);
   return file_close(f);
+}
+
+/*PROJECT 4 */
+
+bool chdir (const char *dir)
+{
+  printf("dir: %s\n", *dir);
+  PANIC("chdir");
+}
+
+bool mkdir (const char *dir)
+{
+  //struct thread *t = thread_current();
+  char *dir_copy;
+  strlcpy (dir_copy, dir, PGSIZE);
+
+  
+  if ( dir_copy[0] == '/' )
+  {
+    char *token, *save_ptr;
+    for(token = strtok_r (dir_copy, "/", &save_ptr); token != NULL;
+        token = strtok_r (NULL, "/", &save_ptr))
+    {
+      printf("%s\n", token);
+    }
+  
+  }
+  else
+  {
+    block_sector_t sector;
+    if(!free_map_allocate(1, &sector))
+      {
+        return false;
+      }
+    dir_create(sector, 10);
+    //inode_open(sector);
+    //PANIC("%d", sector);
+    return dir_add(thread_current()->cwd, dir, sector, 1); 
+  }
+  
+}
+
+bool isdir (int fd)
+{
+  
 }

@@ -113,7 +113,7 @@ struct thread
     int exit_status;                    /* Stores thread exit status */
     struct file* executable;            /* Stores the executable that made the
                                            thread */
-    
+    struct dir *cwd;                    /* Stores the current working directory */
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

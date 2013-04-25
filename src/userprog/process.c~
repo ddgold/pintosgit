@@ -57,8 +57,11 @@ process_execute (const char *file_name)
   
   // Set isParent bit
   struct thread *t = thread_current();
+  if(strcmp(t->name,"main") == 0)
+      t->cwd = dir_open_root();
   t->isParent = 1;
-     
+  
+  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
   
@@ -94,16 +97,11 @@ start_process (void *file_name_)
   for (e = list_begin (&process_list); e != list_end (&process_list); e = list_next (e))
   {
     parent = list_entry (e, struct thread, process_elem);
-    
-    
-    int i;
-    for(i = 0; i < 10; i++)
-    {
-    }
-     
+
     if (parent->isParent == 1)
     {
       child->parent = parent;
+      child->cwd = parent->cwd;
       list_push_back(&parent->children, &child->child_elem);
       parent->isParent = 0;
       break;
@@ -126,12 +124,7 @@ start_process (void *file_name_)
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   
-  /*ADDED PROJECT 3: Adds process to frame table */
-  
-  struct page *p = palloc_get_page(PAL_USER);   
-  //Should we store this pointer in the thread struct???
-  p->name = file_name_;
-  frame_table_add(&p);
+
   
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
