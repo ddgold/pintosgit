@@ -10,6 +10,7 @@
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
 #include "filesys/inode.h"
+#include "filesys/directory.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -217,17 +218,14 @@ bool remove (const char *file)
 int open (const char *file)
 {
   struct thread *t = thread_current();
-  struct dir *dir = dir_isDir(t->cwd, file);
-  if (dir != NULL)
+  struct file *f = filesys_open(file);
+  if (f != NULL && isdir(f->fd))
   {
+    struct dir *dir = dir_isDir(t->cwd, file);
     dir_open(file);
   }
   else
   {
-    
-
-    struct file *f = filesys_open(file);
-    
     // If valid file, update fd and fd_count and add file to open_files list
     if (f != NULL)
     {
@@ -389,35 +387,74 @@ bool mkdir (const char *dir)
 {
   //struct thread *t = thread_current();
   char *dir_copy;
+  struct dir *temp_Dir = thread_current()->cwd;
   strlcpy (dir_copy, dir, PGSIZE);
 
   
   if ( dir_copy[0] == '/' )
   {
     char *token, *save_ptr;
+    int i = 0;
+    
+    
     for(token = strtok_r (dir_copy, "/", &save_ptr); token != NULL;
         token = strtok_r (NULL, "/", &save_ptr))
     {
-      printf("%s\n", token);
-    }
+    
+      if(!strcmp(save_ptr,""))
+      {
+        break;
+      }
+    
+      struct dir_entry e;
+      size_t ofs;
+      
+      for (ofs = 0; inode_read_at (temp_Dir->inode, &e, sizeof e, ofs) == sizeof e;
+           ofs += sizeof e) 
+      {
+        if(!strcmp(e.name, token))// && e.isSubDir)
+        {
+          printf("Found token %s\n", token);
+          temp_Dir = dir_open(inode_open(e.inode_sector));
+        }
+      }
+      ++i;
+    } 
   
   }
-  else
-  {
-    block_sector_t sector;
-    if(!free_map_allocate(1, &sector))
-      {
-        return false;
-      }
-    dir_create(sector, 10);
-    //inode_open(sector);
-    //PANIC("%d", sector);
-    return dir_add(thread_current()->cwd, dir, sector, 1); 
-  }
+  
+  block_sector_t sector;
+  if(!free_map_allocate(1, &sector))
+    {
+      return false;
+    }
+  dir_create(sector, 10);
+  //inode_open(sector);
+  //PANIC("%d", sector);
+  return dir_add(temp_Dir, dir, sector, 1); 
   
 }
 
 bool isdir (int fd)
 {
   
+  struct dir *dir = thread_current()->cwd;
+  struct dir_entry e;
+  size_t ofs;
+  
+  for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
+       ofs += sizeof e) 
+  {
+
+    if(e.in_use && e.isSubDir)
+    {
+
+      struct dir *temp = dir_open(inode_open(e.inode_sector));
+      if(temp->fd == fd)
+      {
+        return true;
+      }
+    }
+  }
+  return false;
 }
