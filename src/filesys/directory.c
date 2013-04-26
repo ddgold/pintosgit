@@ -7,22 +7,7 @@
 #include "threads/malloc.h"
 #include "threads/thread.h"
 
-/* A directory. */
-struct dir 
-  {
-    struct inode *inode;                /* Backing store. */
-    int fd;                             /* file descriptor */
-    off_t pos;                          /* Current position. */
-  };
 
-/* A single directory entry. */
-struct dir_entry 
-  {
-    bool isSubDir;                      /* Is this a sub-directory? */
-    block_sector_t inode_sector;        /* Sector number of header. */
-    char name[NAME_MAX + 1];            /* Null terminated file name. */
-    bool in_use;                        /* In use or free? */
-  };
 
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
@@ -176,10 +161,26 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is
      Otherwise, we'd need to verify that we didn't get a short
      read due to something intermittent such as low memory. */
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e) 
+       ofs += sizeof e)
+  {
+    //printf ("ofs: %d\n", ofs);
     if (!e.in_use)
       break;
-
+  }
+  
+  if (e.in_use)
+  {
+    struct inode* in = dir->inode;
+    
+    if (&in->data.length + sizeof (struct dir_entry) > (*(block_sector_t *)&in->data.sectors * BLOCK_SECTOR_SIZE))
+    {
+      add_sector(&in->data);
+    }
+    
+    in->data.length += sizeof (struct dir_entry);
+    inode_read_at (dir->inode, &e, sizeof e, ofs);
+  }
+  
   /* Write slot. */
   e.in_use = true;
   e.isSubDir = isSubDir;
