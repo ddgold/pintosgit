@@ -39,4 +39,8 @@ unsigned tell (int);
 
 void close (int);
 
+struct dir * follow_path(const char *, struct dir *);
+
+struct dir_entry * find_file_entry(struct dir *, char *);
+
 #endif /* userprog/syscall.h */

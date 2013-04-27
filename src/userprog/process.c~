@@ -48,7 +48,7 @@ process_execute (const char *file_name)
   name = strtok_r (fn_temp, " ", &save_ptr);
   
   // Verify child file exists
-  struct file *temp = filesys_open(name);
+  struct file *temp = filesys_open(name, dir_open_root());
   if(temp == NULL)
   {
     return -1;
@@ -57,7 +57,7 @@ process_execute (const char *file_name)
   
   // Set isParent bit
   struct thread *t = thread_current();
-  if(strcmp(t->name,"main") == 0)
+  if(strcmp(t->name,"main") == 0) //If it's the main thread set the parent to root
       t->cwd = dir_open_root();
   t->isParent = 1;
   
@@ -340,7 +340,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (file_name, thread_current()->cwd);
   
   if (file == NULL) 
     {
