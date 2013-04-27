@@ -26,9 +26,6 @@ dir_open (struct inode *inode)
   struct dir *dir = calloc (1, sizeof *dir);
   if (inode != NULL && dir != NULL)
     {
-    
-      dir->fd = t->fd_count;
-      t->fd_count++;
       dir->inode = inode;
       dir->pos = 0;
       return dir;
@@ -89,11 +86,11 @@ lookup (const struct dir *dir, const char *name,
   
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
-
+  printf("name: %s\n", name);
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e) 
   {
-    //printf("e.name: %s - is inuse?: %d\n", e.name, e.in_use);
+    printf("e.name: %s - is inuse?: %d\n", e.name, e.in_use);
     if (e.in_use && !strcmp (name, e.name)) 
       {
         if (ep != NULL)
@@ -141,18 +138,14 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is
   struct dir_entry e;
   off_t ofs;
   bool success = false;
-
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
-
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
     return false;
-
   /* Check that NAME is not in use. */
   if (lookup (dir, name, NULL, NULL))
     goto done;
-
   /* Set OFS to offset of free slot.
      If there are no free slots, then it will be set to the
      current end-of-file.
@@ -160,6 +153,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is
      inode_read_at() will only return a short read at end of file.
      Otherwise, we'd need to verify that we didn't get a short
      read due to something intermittent such as low memory. */
+
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e)
   {
@@ -167,7 +161,6 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is
     if (!e.in_use)
       break;
   }
-  
   if (e.in_use)
   {
     struct inode* in = dir->inode;
@@ -180,14 +173,12 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is
     in->data.length += sizeof (struct dir_entry);
     inode_read_at (dir->inode, &e, sizeof e, ofs);
   }
-  
   /* Write slot. */
   e.in_use = true;
   e.isSubDir = isSubDir;
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-  
   
  done:
   return success;

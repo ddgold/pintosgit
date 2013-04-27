@@ -20,6 +20,7 @@ struct dir
     struct inode *inode;                /* Backing store. */
     int fd;                             /* file descriptor */
     off_t pos;                          /* Current position. */
+    struct dir *prev_dir;               /* keeps track of previous directory */
   };
 
 /* A single directory entry. */

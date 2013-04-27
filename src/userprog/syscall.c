@@ -2,6 +2,7 @@
 #include "lib/user/syscall.h"
 #include "lib/kernel/list.h"
 #include <stdio.h>
+#include <string.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -199,8 +200,20 @@ int wait (pid_t pid)
 // create
 // ------
 bool create (const char *file, unsigned initial_size)
-{
-  return filesys_create (*(int *) file, (off_t) initial_size);
+{ 
+  char * holder;
+  strlcpy(holder, *(int *)file, PGSIZE);
+  struct dir *temp_Dir = follow_path(holder, thread_current()->cwd);
+  
+  char *token, *save_ptr;
+  for(token = strtok_r (holder, "/", &save_ptr); token != NULL;
+      token = strtok_r (NULL, "/", &save_ptr))
+  {
+    if(!strcmp(save_ptr, ""))
+    {
+      return filesys_create (token, (off_t) initial_size, temp_Dir);
+    }
+  }
 }
 
 // ------
@@ -218,17 +231,25 @@ bool remove (const char *file)
 int open (const char *file)
 {
   struct thread *t = thread_current();
-  struct file *f = filesys_open(file);
-  if (f != NULL && isdir(f->fd))
+  struct dir *dir = follow_path(file, t->cwd);
+  struct dir_entry *de = find_file_entry(thread_current()->cwd, file);
+  if(de->isSubDir)
   {
-    struct dir *dir = dir_isDir(t->cwd, file);
-    dir_open(file);
+    struct dir *temp = dir_open(de->inode_sector);
+    temp->fd = t->fd_count;
+    t->fd_count++;
   }
   else
   {
+    printf("here.\n");
+    printf("file: %s\n", file);
+    printf("dir: %d\n", dir->fd);
+    struct file *f = filesys_open(file, dir);
+    printf("here.....\n");
     // If valid file, update fd and fd_count and add file to open_files list
     if (f != NULL)
     {
+      printf("not null");
       list_push_back(&t->open_files, &f->open_file);
       f->fd = t->fd_count;
       t->fd_count++;
@@ -236,7 +257,6 @@ int open (const char *file)
     }
     else
     {
-      
       return -1;
     }
   }  
@@ -379,48 +399,55 @@ void close (int fd)
 
 bool chdir (const char *dir)
 {
-  printf("dir: %s\n", *dir);
-  PANIC("chdir");
+  char *dir_copy;
+  strlcpy(dir_copy, dir, PGSIZE);
+  struct dir *temp_Dir = thread_current()->cwd;
+  temp_Dir = follow_path(dir_copy, temp_Dir);
+  
+  if(temp_Dir == NULL)
+  {
+    PANIC("invalid path");
+    return 0;
+  }
+  char *path, *token, *save_ptr;
+  strlcpy(path, dir, PGSIZE);
+  for(token = strtok_r (path, "/", &save_ptr); token != NULL;
+      token = strtok_r (NULL, "/", &save_ptr))
+  {
+    if(!strcmp(save_ptr, ""))
+    {
+      path = token;
+    }
+  }  
+  struct dir_entry e;
+  size_t ofs;
+  
+  for (ofs = 0; inode_read_at (temp_Dir->inode, &e, sizeof e, ofs) == sizeof e;
+       ofs += sizeof e) 
+  {
+    if(!strcmp(e.name, path))
+    {
+      thread_current()->cwd = dir_open(e.inode_sector);
+      return 1;
+    }
+  }
+  return 0;
 }
 
 bool mkdir (const char *dir)
 {
   //struct thread *t = thread_current();
   char *dir_copy;
-  struct dir *temp_Dir = thread_current()->cwd;
   strlcpy (dir_copy, dir, PGSIZE);
-
+  struct dir *temp_Dir = thread_current()->cwd;
   
-  if ( dir_copy[0] == '/' )
+  if ( dir_copy[0] == '/')
   {
-    char *token, *save_ptr;
-    int i = 0;
-    
-    
-    for(token = strtok_r (dir_copy, "/", &save_ptr); token != NULL;
-        token = strtok_r (NULL, "/", &save_ptr))
+    temp_Dir = follow_path(dir_copy, temp_Dir);
+    if(temp_Dir == NULL)
     {
-    
-      if(!strcmp(save_ptr,""))
-      {
-        break;
-      }
-    
-      struct dir_entry e;
-      size_t ofs;
-      
-      for (ofs = 0; inode_read_at (temp_Dir->inode, &e, sizeof e, ofs) == sizeof e;
-           ofs += sizeof e) 
-      {
-        if(!strcmp(e.name, token))// && e.isSubDir)
-        {
-          printf("Found token %s\n", token);
-          temp_Dir = dir_open(inode_open(e.inode_sector));
-        }
-      }
-      ++i;
-    } 
-  
+      PANIC("invalid path");
+    }
   }
   
   block_sector_t sector;
@@ -457,4 +484,93 @@ bool isdir (int fd)
     }
   }
   return false;
+}
+
+struct dir *
+follow_path(const char *path_const, struct dir *temp_Dir)
+{
+    printf("FALLOW PATH: %s\n", path_const);
+    char *token, *save_ptr;
+    int i = 0;
+    struct dir *result = NULL;
+    char *path;
+    strlcpy(path, path_const, PGSIZE);
+    printf("%s\n", path);
+    for(token = strtok_r (path, "/", &save_ptr); token != NULL;
+        token = strtok_r (NULL, "/", &save_ptr))
+    {
+      // Last entry, break;
+      
+      if(!strcmp(save_ptr,""))
+      {
+        printf("next empty\n");
+        break;
+      }
+      
+      // Current directory
+      else if(!strcmp(save_ptr,"."))
+      {
+        continue;
+      }
+      
+      // Previous directory
+      else if(!strcmp(save_ptr,".."))
+      {
+        if(temp_Dir->prev_dir != NULL)
+          temp_Dir = temp_Dir->prev_dir;
+      }
+      else
+      {
+      struct dir_entry e;
+      size_t ofs;
+      bool didFind = false;
+      for (ofs = 0; inode_read_at (temp_Dir->inode, &e, sizeof e, ofs) == sizeof e;
+           ofs += sizeof e) 
+      {
+        printf("e.name: %s\n", e.name);
+        if(!strcmp(e.name, token) && e.isSubDir)
+        {
+          temp_Dir = dir_open(inode_open(e.inode_sector));
+          didFind = true;
+          break;
+        }
+        
+      }
+      if(didFind == false)
+        {
+          return NULL;
+        }
+      ++i;
+    }
+  
+  }
+  return temp_Dir;
+}
+
+struct dir_entry *
+find_file_entry (struct dir *temp_Dir, char *path)
+{
+    char *token, *save_ptr;
+    int i = 0;
+    struct dir *result = NULL;
+    
+    for(token = strtok_r (path, "/", &save_ptr); token != NULL;
+        token = strtok_r (NULL, "/", &save_ptr))
+    {
+      // Last entry, break;
+      if(!strcmp(save_ptr,""))
+      {
+          struct dir_entry e;
+          size_t ofs;
+          bool didFind = false;
+          for (ofs = 0; inode_read_at (temp_Dir->inode, &e, sizeof e, ofs) == sizeof e;
+               ofs += sizeof e) 
+          {
+            if(!strcmp(e.name, save_ptr))
+            {
+              return &e;
+            }
+          }
+      }
+    }
 }
