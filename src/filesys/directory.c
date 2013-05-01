@@ -5,9 +5,6 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
-#include "threads/thread.h"
-
-
 
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
@@ -22,7 +19,6 @@ dir_create (block_sector_t sector, size_t entry_cnt)
 struct dir *
 dir_open (struct inode *inode) 
 {
-  struct thread *t = thread_current();
   struct dir *dir = calloc (1, sizeof *dir);
   if (inode != NULL && dir != NULL)
     {
@@ -86,11 +82,9 @@ lookup (const struct dir *dir, const char *name,
   
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
-  printf("name: %s\n", name);
+
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e) 
-  {
-    printf("e.name: %s - is inuse?: %d\n", e.name, e.in_use);
     if (e.in_use && !strcmp (name, e.name)) 
       {
         if (ep != NULL)
@@ -99,7 +93,6 @@ lookup (const struct dir *dir, const char *name,
           *ofsp = ofs;
         return true;
       }
-  }
   return false;
 }
 
@@ -147,12 +140,11 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is
   if (lookup (dir, name, NULL, NULL))
     goto done;
   /* Set OFS to offset of free slot.
-     If there are no free slots, then it will be set to the
-     current end-of-file.
-     
-     inode_read_at() will only return a short read at end of file.
-     Otherwise, we'd need to verify that we didn't get a short
-     read due to something intermittent such as low memory. */
+If there are no free slots, then it will be set to the
+current end-of-file.
+inode_read_at() will only return a short read at end of file.
+Otherwise, we'd need to verify that we didn't get a short
+read due to something intermittent such as low memory. */
 
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e)
@@ -240,29 +232,3 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
     }
   return false;
 }
-
-
-
-struct dir *
-dir_isDir(struct dir *dir, char * name)
-{
-  struct dir_entry e;
-  size_t ofs;
-  
-  for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e) 
-  {
-    if (strcmp (e.name, name))
-    {
-      return dir_open(inode_open(e.inode_sector));
-    }
-  }
-  
-  return NULL;
-}
-
-
-
-
-
-

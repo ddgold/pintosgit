@@ -10,7 +10,6 @@
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
-#include "threads/thread.h"
 
 /* List files in the root directory. */
 void
@@ -39,7 +38,7 @@ fsutil_cat (char **argv)
   char *buffer;
 
   printf ("Printing '%s' to the console...\n", file_name);
-  file = filesys_open (file_name, thread_current()->cwd);
+  file = filesys_open (file_name, dir_open_root());
   if (file == NULL)
     PANIC ("%s: open failed", file_name);
   buffer = palloc_get_page (PAL_ASSERT);
@@ -63,7 +62,7 @@ fsutil_rm (char **argv)
   const char *file_name = argv[1];
   
   printf ("Deleting '%s'...\n", file_name);
-  if (!filesys_remove (file_name))
+  if (!filesys_remove (file_name, dir_open_root()))
     PANIC ("%s: delete failed\n", file_name);
 }
 
@@ -182,7 +181,7 @@ fsutil_append (char **argv)
     PANIC ("couldn't allocate buffer");
 
   /* Open source file. */
-  src = filesys_open (file_name, thread_current()->cwd);
+  src = filesys_open (file_name, dir_open_root());
   if (src == NULL)
     PANIC ("%s: open failed", file_name);
   size = file_length (src);

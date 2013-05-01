@@ -95,7 +95,10 @@ struct thread
     struct list_elem elem;              /* List element. */
 
     /* ADDED */
+    struct dir *cwd;                    /* Stores the current working directory */
+    
     struct list open_files;             /* Lists Thread's Open Files */
+    struct list open_dirs;              /* Lists Thread's Open Directors */
     int fd_count;                       /* Keeps track of the next fd */
     int isParent;                       /* Indicates if thread is parent */
     struct thread *parent;              /* Keep track of thread's parent*/
@@ -113,7 +116,7 @@ struct thread
     int exit_status;                    /* Stores thread exit status */
     struct file* executable;            /* Stores the executable that made the
                                            thread */
-    struct dir *cwd;                    /* Stores the current working directory */
+    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

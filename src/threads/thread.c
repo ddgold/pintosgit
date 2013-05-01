@@ -475,6 +475,7 @@ init_thread (struct thread *t, const char *name, int priority)
   
   /* ADDED: Intials all necessary values */
   list_init(&t->open_files);
+  list_init(&t->open_dirs);
   t->fd_count = 2;
   t->parent = 0;
   t->exit_status = -1;

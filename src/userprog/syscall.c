@@ -2,7 +2,6 @@
 #include "lib/user/syscall.h"
 #include "lib/kernel/list.h"
 #include <stdio.h>
-#include <string.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -63,7 +62,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXEC:
       if (valid_pointer (arg0))
       {
-        f->eax = exec ((char *) arg0);
+        f->eax = exec (*(const char **) arg0);
       }
       else
       {
@@ -76,7 +75,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CREATE:
       if (valid_pointer (arg0))
       {
-        f->eax = create ((char *) arg0, *(unsigned *) arg1);
+        f->eax = create (*(const char **) arg0, *(unsigned *) arg1);
       }
       else
       {
@@ -84,12 +83,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       break;
     case SYS_REMOVE:
-      remove ((char *) arg0);
+      remove (*(const char **) arg0);
       break;
     case SYS_OPEN:
       if (valid_pointer (arg0))
       {
-        f->eax = open (*(int *) arg0);
+        f->eax = open (*(const char **) arg0);
       }
       else
       {
@@ -128,12 +127,24 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CLOSE:
       close (*(int *) arg0);
       break;
+    
+    // Project 4
     case SYS_CHDIR:
-      f->eax = chdir(*(int *) arg0);
+      f->eax = chdir(*(const char **) arg0);
       break;
     case SYS_MKDIR:
-      f->eax = mkdir(*(int *) arg0);
+      f->eax = mkdir(*(const char **) arg0);
       break;
+    case SYS_READDIR:
+      f->eax = readdir(*(int *) arg0, *(const char **) arg1);
+      break;
+    case SYS_ISDIR:
+      f->eax = isdir(*(int *) arg0);
+      break;
+    case SYS_INUMBER:
+      f->eax = inumber(*(int *) arg0);
+
+    // Invalid Syscall
     default:
       exit(-1);
       break;      
@@ -156,6 +167,97 @@ struct file* find_file (int fd)
     }
   }
   return NULL;
+}
+
+
+struct dir* find_dir (int fd)
+{
+  struct thread *t = thread_current();
+  struct list_elem *e;
+  struct dir *d;
+
+  for (e = list_begin (&t->open_dirs); e != list_end (&t->open_dirs); e = list_next (e))
+  {
+    d = list_entry (e, struct dir, open_dir);
+    if (d->fd == fd)
+    {
+      return d;
+    }
+  }
+  return NULL;
+}
+
+
+char* parse (const char *path)
+{
+  char *token, *save_ptr;
+  char *temp = palloc_get_page(0);
+  strlcpy (temp, path, PGSIZE);
+  for(token = strtok_r (temp, "/", &save_ptr); token != NULL;
+        token = strtok_r (NULL, "/", &save_ptr))
+  {
+    if(!strcmp(save_ptr,""))
+    {
+      break;
+    }
+  }
+  return token;
+}
+
+
+struct dir *
+follow_path(const char *path, struct dir *dir)
+{
+  char *token, *save_ptr;
+  char *temp = palloc_get_page(0);
+  strlcpy (temp, path, PGSIZE);
+  for(token = strtok_r (temp, "/", &save_ptr); token != NULL;
+        token = strtok_r (NULL, "/", &save_ptr))
+  {
+      
+    // Last entry, break;
+    if(!strcmp(save_ptr,""))
+    {
+      break;
+    }
+    
+    // Current directory
+    else if(!strcmp(save_ptr,"."))
+    {
+      continue;
+    }
+    
+    // Previous directory
+    else if(!strcmp(save_ptr,".."))
+    {
+      if(dir->parent_dir != NULL)
+      {
+        dir = dir->parent_dir;
+      }
+    }
+    else
+    {
+      struct dir_entry e;
+      size_t ofs;
+      bool didFind = false;
+      for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e) 
+      {
+        if(!strcmp(e.name, token) && e.isSubDir)
+        {
+          dir = dir_open(inode_open(e.inode_sector));
+          didFind = true;
+          break;
+        }
+      }
+      if(didFind == false)
+      {
+        dir = NULL;
+        break;
+      }
+    }
+  }
+  palloc_free_page(temp);
+  return dir;
 }
 
 
@@ -184,7 +286,7 @@ void exit (int status)
 // ----
 pid_t exec (const char *cmd_line) 
 {
-  tid_t tid = process_execute (*(int *) cmd_line);
+  tid_t tid = process_execute (cmd_line);
   return tid;
 }
 
@@ -199,68 +301,98 @@ int wait (pid_t pid)
 // ------
 // create
 // ------
-bool create (const char *file, unsigned initial_size)
-{ 
-  char * holder;
-  strlcpy(holder, *(int *)file, PGSIZE);
-  struct dir *temp_Dir = follow_path(holder, thread_current()->cwd);
-  
-  char *token, *save_ptr;
-  for(token = strtok_r (holder, "/", &save_ptr); token != NULL;
-      token = strtok_r (NULL, "/", &save_ptr))
+bool create (const char *path, unsigned initial_size)
+{
+  if (!strcmp(path, ""))
   {
-    if(!strcmp(save_ptr, ""))
-    {
-      return filesys_create (token, (off_t) initial_size, temp_Dir);
-    }
+    return false;
   }
+
+  struct dir *directory = follow_path (path, thread_current()->cwd);
+  char *file = parse (path);
+  return filesys_create (file, (off_t) initial_size, directory);
 }
 
 // ------
 // remove
 // ------
-bool remove (const char *file)
+bool remove (const char *path)
 {
+  struct dir *directory = follow_path (path, thread_current()->cwd);
+  char *file = parse (path);
   
-  return filesys_remove(* (int *) file);
+  struct dir_entry entry;
+  size_t ofs;
+  for (ofs = 0; inode_read_at (directory->inode, &entry, sizeof entry, ofs) == sizeof entry; ofs += sizeof entry)
+  {
+    if (!strcmp(entry.name, file))
+    {
+      if (entry.isSubDir)
+      {
+        /*
+        struct dir *d = dir_open(inode_open(e.inode_sector));
+        for (ofs = 0; inode_read_at (d->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e)
+        {
+          if (e.in_use)
+          {
+            return false;
+          }
+        }
+        
+        */
+        return true;
+      }
+      else
+      {
+        return filesys_remove(file, directory);
+      }
+    }
+  }
+  
+  PANIC ("open: File Not Found");
+  return false;
 }
 
 // ----
 // open
 // ----
-int open (const char *file)
+int open (const char *path)
 {
-  struct thread *t = thread_current();
-  struct dir *dir = follow_path(file, t->cwd);
-  struct dir_entry *de = find_file_entry(thread_current()->cwd, file);
-  if(de->isSubDir)
+  if (!strcmp(path, ""))
   {
-    struct dir *temp = dir_open(de->inode_sector);
-    temp->fd = t->fd_count;
-    t->fd_count++;
+    return -1;
   }
-  else
-  {
-    printf("here.\n");
-    printf("file: %s\n", file);
-    printf("dir: %d\n", dir->fd);
-    struct file *f = filesys_open(file, dir);
-    printf("here.....\n");
-    // If valid file, update fd and fd_count and add file to open_files list
-    if (f != NULL)
-    {
-      printf("not null");
-      list_push_back(&t->open_files, &f->open_file);
-      f->fd = t->fd_count;
-      t->fd_count++;
-      return f->fd;
-    }
-    else
-    {
-      return -1;
-    }
-  }  
+  
+  struct dir *directory = follow_path (path, thread_current()->cwd);
+  char *file = parse (path);
+  struct thread *t = thread_current();
 
+  struct dir_entry e;
+  size_t ofs;
+  for (ofs = 0; inode_read_at (directory->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e)
+  {
+    if (!strcmp(e.name, file))
+    {
+      if (e.isSubDir)
+      {
+        struct dir *d = dir_open(inode_open(e.inode_sector));
+        list_push_back(&t->open_dirs, &d->open_dir);
+        d->fd = t->fd_count;
+        t->fd_count++;
+        return d->fd;
+      }
+      else
+      {
+        struct file *f = file_open (inode_open(e.inode_sector));
+        list_push_back(&t->open_files, &f->open_file);
+        f->fd = t->fd_count;
+        t->fd_count++;
+        return f->fd;
+      }
+    }
+  }
+
+  return -1;
 }
 
 // --------
@@ -268,7 +400,6 @@ int open (const char *file)
 // --------
 int filesize (int fd)
 { 
-
   struct file *f = find_file (fd);
   int length = file_length (f);
   return length;
@@ -314,46 +445,34 @@ int write (int fd, const void *buffer, unsigned size)
   else
   {
     lock_acquire(&write_lock);
-    struct thread *t = thread_current();
-    struct file *f = list_entry (list_begin (&t->open_files), struct file, open_file);
-  
-    do
+    
+    struct file *f = find_file (fd);
+        
+    if(f == NULL)
     {
-      // Is open_files empty?
-      if( &f->open_file == list_tail(&t->open_files) )
+      lock_release(&write_lock);
+      return -1;
+    }
+    else
+    {
+      struct inode *in = *(int *) &f->inode;
+      
+      // Check if file needs a new sector
+      if((size + *(int *)&f->pos) > (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE))
       {
-        lock_release(&write_lock);
-        return -1;
+        add_sector(&in->data);
       }
       
-      // Is f correct file?
-      if ( *(int *) &f->fd == fd )
+      // Increase the length of file
+      if( in->data.length < (size + *(int *)&f->pos) )
       {
-        lock_release(&write_lock);
-               
-        struct inode *in = *(int *) &f->inode;
-        
-        if(isdir(fd))
-          {
-            exit(-1);
-          }
-                
-        //printf("a: %d - b: %d - c: %d \n", (size + *(int *)&f->pos), (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE), in->data.length);
-        if((size + *(int *)&f->pos) > (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE))
-        {   
-          add_sector(&in->data);
-        }
-        
-        if( in->data.length < (size + *(int *)&f->pos) )
-        {
-          in->data.length = *(int *)&f->pos + size;
-        }
-        
-        int test = file_write(f, *(int *)buffer, size);        
-        return test;
+        in->data.length = *(int *)&f->pos + size;
       }
-      f = list_entry (list_next(&f->open_file), struct file, open_file);    
-    } while ((int) &f->fd != fd);
+      
+      lock_release(&write_lock);
+      int test = file_write(f, *(int *)buffer, size);
+      return test;
+    }
   }
   
   return -1;
@@ -395,182 +514,100 @@ void close (int fd)
   return file_close(f);
 }
 
-/*PROJECT 4 */
-
+// -----
+// chdir
+// -----
 bool chdir (const char *dir)
 {
-  char *dir_copy;
-  strlcpy(dir_copy, dir, PGSIZE);
-  struct dir *temp_Dir = thread_current()->cwd;
-  temp_Dir = follow_path(dir_copy, temp_Dir);
-  
-  if(temp_Dir == NULL)
+  struct dir *directory = follow_path (dir, thread_current()->cwd);
+
+  if (directory == NULL)
   {
-    PANIC("invalid path");
-    return 0;
+    PANIC ("chdir: Invalid Path");
+    return false;
   }
-  char *path, *token, *save_ptr;
-  strlcpy(path, dir, PGSIZE);
-  for(token = strtok_r (path, "/", &save_ptr); token != NULL;
-      token = strtok_r (NULL, "/", &save_ptr))
-  {
-    if(!strcmp(save_ptr, ""))
-    {
-      path = token;
-    }
-  }  
+ 
+  char *file = parse (dir);
   struct dir_entry e;
   size_t ofs;
-  
-  for (ofs = 0; inode_read_at (temp_Dir->inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e) 
+  for (ofs = 0; inode_read_at (directory->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e) 
   {
-    if(!strcmp(e.name, path))
+    if(!strcmp(e.name, file))
     {
-      thread_current()->cwd = dir_open(e.inode_sector);
-      return 1;
+      thread_current()->cwd = dir_open(inode_open(e.inode_sector));
+      return true;
     }
   }
-  return 0;
+  
+  PANIC ("chdir: SubDir Not Found");
+  return false;
 }
 
+// -----
+// mkdir
+// -----
 bool mkdir (const char *dir)
 {
-  //struct thread *t = thread_current();
-  char *dir_copy;
-  strlcpy (dir_copy, dir, PGSIZE);
-  struct dir *temp_Dir = thread_current()->cwd;
-  
-  if ( dir_copy[0] == '/')
+  if (!strcmp(dir, ""))
   {
-    temp_Dir = follow_path(dir_copy, temp_Dir);
-    if(temp_Dir == NULL)
-    {
-      PANIC("invalid path");
-    }
+    return false;
+  }
+  
+  struct dir *directory = follow_path (dir, thread_current()->cwd);
+  
+  if (directory == NULL)
+  {
+    PANIC ("mkdir: Invalid Path");
+    return false;
   }
   
   block_sector_t sector;
   if(!free_map_allocate(1, &sector))
-    {
-      return false;
-    }
-  dir_create(sector, 10);
-  //inode_open(sector);
-  //PANIC("%d", sector);
-  return dir_add(temp_Dir, dir, sector, 1); 
+  {
+    PANIC ("mkdir: Filesys Full");
+    return false;
+  }
   
+  dir_create(sector, 1);
+  return dir_add (directory, parse (dir), sector, true); 
+  return true;
 }
 
-bool isdir (int fd)
+// -------
+// readdir
+// -------
+bool readdir (int fd, char *name)
 {
-  
-  struct dir *dir = thread_current()->cwd;
-  struct dir_entry e;
-  size_t ofs;
-  
-  for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e) 
-  {
-
-    if(e.in_use && e.isSubDir)
-    {
-
-      struct dir *temp = dir_open(inode_open(e.inode_sector));
-      if(temp->fd == fd)
-      {
-        return true;
-      }
-    }
-  }
+  PANIC ("readdir not implemented");
   return false;
 }
 
-struct dir *
-follow_path(const char *path_const, struct dir *temp_Dir)
+// -----
+// isdir
+// -----
+bool isdir (int fd) 
 {
-    printf("FALLOW PATH: %s\n", path_const);
-    char *token, *save_ptr;
-    int i = 0;
-    struct dir *result = NULL;
-    char *path;
-    strlcpy(path, path_const, PGSIZE);
-    printf("%s\n", path);
-    for(token = strtok_r (path, "/", &save_ptr); token != NULL;
-        token = strtok_r (NULL, "/", &save_ptr))
-    {
-      // Last entry, break;
-      
-      if(!strcmp(save_ptr,""))
-      {
-        printf("next empty\n");
-        break;
-      }
-      
-      // Current directory
-      else if(!strcmp(save_ptr,"."))
-      {
-        continue;
-      }
-      
-      // Previous directory
-      else if(!strcmp(save_ptr,".."))
-      {
-        if(temp_Dir->prev_dir != NULL)
-          temp_Dir = temp_Dir->prev_dir;
-      }
-      else
-      {
-      struct dir_entry e;
-      size_t ofs;
-      bool didFind = false;
-      for (ofs = 0; inode_read_at (temp_Dir->inode, &e, sizeof e, ofs) == sizeof e;
-           ofs += sizeof e) 
-      {
-        printf("e.name: %s\n", e.name);
-        if(!strcmp(e.name, token) && e.isSubDir)
-        {
-          temp_Dir = dir_open(inode_open(e.inode_sector));
-          didFind = true;
-          break;
-        }
-        
-      }
-      if(didFind == false)
-        {
-          return NULL;
-        }
-      ++i;
-    }
+  struct thread *t = thread_current();
+  struct list_elem *e;
+  struct dir *d;
   
+  for (e = list_begin (&t->open_dirs); e != list_end (&t->open_dirs); e = list_next (e))
+  {
+    d = list_entry (e, struct dir, open_dir);
+    if (d->fd == fd)
+    {
+      return true;
+    }
   }
-  return temp_Dir;
+  
+  return false;
 }
 
-struct dir_entry *
-find_file_entry (struct dir *temp_Dir, char *path)
+// -------
+// inumber
+// -------
+int inumber (int fd)
 {
-    char *token, *save_ptr;
-    int i = 0;
-    struct dir *result = NULL;
-    
-    for(token = strtok_r (path, "/", &save_ptr); token != NULL;
-        token = strtok_r (NULL, "/", &save_ptr))
-    {
-      // Last entry, break;
-      if(!strcmp(save_ptr,""))
-      {
-          struct dir_entry e;
-          size_t ofs;
-          bool didFind = false;
-          for (ofs = 0; inode_read_at (temp_Dir->inode, &e, sizeof e, ofs) == sizeof e;
-               ofs += sizeof e) 
-          {
-            if(!strcmp(e.name, save_ptr))
-            {
-              return &e;
-            }
-          }
-      }
-    }
+  PANIC ("inumber not implemented");
+  return -1;
 }

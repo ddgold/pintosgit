@@ -57,11 +57,13 @@ process_execute (const char *file_name)
   
   // Set isParent bit
   struct thread *t = thread_current();
-  if(strcmp(t->name,"main") == 0) //If it's the main thread set the parent to root
-      t->cwd = dir_open_root();
+  //If it's the main thread set the parent to root
+  if(strcmp(t->name,"main") == 0)
+  {
+    t->cwd = dir_open_root();
+  }
   t->isParent = 1;
-  
-  
+     
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
   
