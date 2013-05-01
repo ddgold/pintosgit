@@ -4,7 +4,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "devices/block.h"
-#include "filesys/off_t.h"
+#include "filesys/filesys.h"
+#include "filesys/inode.h"
 
 /* Maximum length of a file name component.
    This is the traditional UNIX maximum length.
@@ -14,23 +15,25 @@
 
 struct inode;
 
+
 /* A directory. */
 struct dir 
-  {
-    struct inode *inode;                /* Backing store. */
-    int fd;                             /* file descriptor */
-    off_t pos;                          /* Current position. */
-    struct dir *prev_dir;               /* keeps track of previous directory */
-  };
+{
+  struct inode *inode;                /* Backing store. */
+  off_t pos;                          /* Current position. */
+  int fd;                             /* Directory's file descriptor */
+  struct list_elem open_dir;          /* Directory's element for open_dirs */
+  struct dir *parent_dir;             /* keeps track of parent directory */
+};
 
 /* A single directory entry. */
 struct dir_entry 
-  {
-    bool isSubDir;                      /* Is this a sub-directory? */
-    block_sector_t inode_sector;        /* Sector number of header. */
-    char name[NAME_MAX + 1];            /* Null terminated file name. */
-    bool in_use;                        /* In use or free? */
-  };
+{
+  bool isSubDir;                      /* Is this a sub-directory? */ 
+  block_sector_t inode_sector;        /* Sector number of header. */
+  char name[NAME_MAX + 1];            /* Null terminated file name. */
+  bool in_use;                        /* In use or free? */
+};
 
 /* Opening and closing directories. */
 bool dir_create (block_sector_t sector, size_t entry_cnt);
@@ -42,7 +45,7 @@ struct inode *dir_get_inode (struct dir *);
 
 /* Reading and writing. */
 bool dir_lookup (const struct dir *, const char *name, struct inode **);
-bool dir_add (struct dir *, const char *name, block_sector_t, bool);
+bool dir_add (struct dir *, const char *name, block_sector_t, bool isSubDir);
 bool dir_remove (struct dir *, const char *name);
 bool dir_readdir (struct dir *, char name[NAME_MAX + 1]);
 

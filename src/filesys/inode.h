@@ -4,9 +4,44 @@
 #include <stdbool.h>
 #include "filesys/off_t.h"
 #include "devices/block.h"
-#include "threads/synch.h"
+#include <list.h>
 
 struct bitmap;
+
+
+/* On-disk inode.
+   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
+struct inode_disk
+{
+  off_t length;                       /* File size in bytes. */
+  size_t sectors;                     /* length in sectors */
+  
+  block_sector_t data_blocks[5];      /* Direct data blocks */
+  block_sector_t indirect_blocks[60]; /* Indirect blocks */
+  block_sector_t db_block;            /* Double ndirect block */
+  
+  unsigned magic;                     /* Magic number. */
+  uint32_t unused[59];                /* Not used. */
+};
+
+/* On-disk indirect block
+   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
+struct indirect_block
+{
+  block_sector_t data_blocks[100];    /* Array of sector index held in block */
+  uint32_t unused[28];                /* Not used. */
+};
+
+/* In-memory inode. */
+struct inode 
+{
+  struct list_elem elem;              /* Element in inode list. */
+  block_sector_t sector;              /* Sector number of disk location. */
+  int open_cnt;                       /* Number of openers. */
+  bool removed;                       /* True if deleted, false otherwise. */
+  int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+  struct inode_disk data;             /* Inode content. */
+};
 
 
 void inode_init (void);
@@ -21,47 +56,5 @@ off_t inode_write_at (struct inode *, const void *, off_t size, off_t offset);
 void inode_deny_write (struct inode *);
 void inode_allow_write (struct inode *);
 off_t inode_length (const struct inode *);
-//bool add_sector (struct inode_disk *);
-//bool remove_sectors (struct inode_disk *);
-
-
-/* On-disk inode.
-   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
-struct inode_disk
-  {
-    //block_sector_t start;               /* First data sector. */
-    off_t length;                         /* File size in bytes. */
-    size_t sectors;                       /* length in sectors */
-   // block_sector_t disk_length;            /* keeps track of previous written sector */
-    
-    //Added: inode_block structure
-    block_sector_t data_blocks[5];
-    block_sector_t indirect_blocks[60];
-    block_sector_t db_block;
-    
-    unsigned magic;                     /* Magic number. */
-    uint32_t unused[59];                /* Not used. Without struct was 125 big*/
-  };
-
-struct indirect_block
-  {
-    block_sector_t data_blocks[100];
-    uint32_t unused[28];                /* Not used. */
-  };
-
-
-/* In-memory inode. */
-struct inode 
-  {
-    struct list_elem elem;              /* Element in inode list. */
-    block_sector_t sector;              /* Sector number of disk location. */
-    int open_cnt;                       /* Number of openers. */
-    bool removed;                       /* True if deleted, false otherwise. */
-    int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct inode_disk data;             /* Inode content. */
-  };
-
-
-struct lock inode_lock;
 
 #endif /* filesys/inode.h */

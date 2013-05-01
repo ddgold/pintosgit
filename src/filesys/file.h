@@ -6,13 +6,13 @@
 
 /* An open file. */
 struct file 
-  {
-    struct inode *inode;        /* File's inode. */
-    off_t pos;                  /* Current position. */
-    bool deny_write;            /* Has file_deny_write() been called? */
-    int fd;                     /* ADDED: Files file descriptor */
-    struct list_elem open_file; /* ADDED: Open file element for open_files */
-  };
+{
+  struct inode *inode;        /* File's inode. */
+  off_t pos;                  /* Current position. */
+  bool deny_write;            /* Has file_deny_write() been called? */
+  int fd;                     /* ADDED: Files file descriptor */
+  struct list_elem open_file; /* ADDED: Open file element for open_files */
+};
 
 struct inode;
 
