@@ -45,9 +45,12 @@ byte_to_sector (const struct inode *inode, off_t pos)
     }
     else
     {
+      block_sector_t temp;
       block_sector_t* buffer = calloc (1, sizeof (struct indirect_block));
       block_read (fs_device, inode->data.indirect_blocks[block_num], buffer);
-      return buffer[block_index];
+      temp = buffer[block_index];
+      free (buffer);
+      return temp;
     }
   }
   else if (sector_num < 16005)
@@ -123,6 +126,7 @@ bool add_sector(struct inode_disk *disk_inode)
 
       block_write (fs_device, i_block_sector, i_block);
       disk_inode->indirect_blocks[block_num] = i_block_sector;
+      free (i_block);
     }
     
     // Follow Indirect Block
@@ -131,7 +135,7 @@ bool add_sector(struct inode_disk *disk_inode)
     block_read (fs_device, disk_inode->indirect_blocks[block_num], buffer);
     buffer[block_index] = sector;
     block_write (fs_device, disk_inode->indirect_blocks[block_num], buffer);
-
+    free (buffer);
   }
   else if (disk_inode->sectors < 16005)
   {
@@ -218,7 +222,6 @@ one sector in size, and you should fix that. */
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
     {
-      //size_t sectors = bytes_to_sectors (length);
       disk_inode->sectors = 0;
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
@@ -387,7 +390,9 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
         {
           bounce = malloc (BLOCK_SECTOR_SIZE);
           if (bounce == NULL)
+          { 
             break;
+          }
         }
       block_read (fs_device, sector_idx, bounce);
       memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
@@ -441,6 +446,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
       {
         /* Write full sector directly to disk. */
+        
         block_write (fs_device, sector_idx, buffer + bytes_written);
       }
     else
