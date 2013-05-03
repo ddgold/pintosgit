@@ -201,20 +201,31 @@ char* parse (const char *path)
       break;
     }
   }
-  return token;
+  
+  if (token == NULL)
+  {
+    return path;
+  }
+  else
+  {
+    return token;
+  }
 }
 
 
 struct dir *
 follow_path(const char *path, struct dir *dir)
 {
+  if (path[0] == '/')
+  {
+    dir = dir_open_root();
+  }
   char *token, *save_ptr;
   char *temp = palloc_get_page(0);
   strlcpy (temp, path, PGSIZE);
   for(token = strtok_r (temp, "/", &save_ptr); token != NULL;
         token = strtok_r (NULL, "/", &save_ptr))
   {
-      
     // Last entry, break;
     if(!strcmp(save_ptr,""))
     {
@@ -307,7 +318,6 @@ bool create (const char *path, unsigned initial_size)
   {
     return false;
   }
-
   struct dir *directory = follow_path (path, thread_current()->cwd);
   char *file = parse (path);
   return filesys_create (file, (off_t) initial_size, directory);
@@ -322,15 +332,17 @@ bool remove (const char *path)
   char *file = parse (path);
   
   struct dir_entry entry;
-  size_t ofs;
-  for (ofs = 0; inode_read_at (directory->inode, &entry, sizeof entry, ofs) == sizeof entry; ofs += sizeof entry)
+  size_t offset;
+  for (offset = 0; inode_read_at (directory->inode, &entry, sizeof entry, offset) == sizeof entry;
+       offset += sizeof entry)
   {
     if (!strcmp(entry.name, file))
     {
       if (entry.isSubDir)
       {
-        /*
-        struct dir *d = dir_open(inode_open(e.inode_sector));
+        struct dir *d = dir_open(inode_open(entry.inode_sector));
+        struct dir_entry e;
+        size_t ofs;
         for (ofs = 0; inode_read_at (d->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e)
         {
           if (e.in_use)
@@ -338,13 +350,11 @@ bool remove (const char *path)
             return false;
           }
         }
-        
-        */
-        return true;
+        return dir_remove (directory, file);
       }
       else
       {
-        return filesys_remove(file, directory);
+        return filesys_remove (file, directory);
       }
     }
   }
@@ -358,15 +368,26 @@ bool remove (const char *path)
 // ----
 int open (const char *path)
 {
+  // No Path Provided
   if (!strcmp(path, ""))
   {
     return -1;
   }
   
-  struct dir *directory = follow_path (path, thread_current()->cwd);
-  char *file = parse (path);
+  // Open Root
   struct thread *t = thread_current();
-
+  if (!strcmp(path, "/"))
+  {
+    struct dir *d = dir_open_root();
+    list_push_back(&t->open_dirs, &d->open_dir);
+    d->fd = t->fd_count;
+    t->fd_count++;
+    return d->fd;
+  }
+  
+  
+  struct dir *directory = follow_path (path, t->cwd);
+  char *file = parse (path);
   struct dir_entry e;
   size_t ofs;
   for (ofs = 0; inode_read_at (directory->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e)
@@ -391,7 +412,6 @@ int open (const char *path)
       }
     }
   }
-
   return -1;
 }
 
@@ -520,26 +540,22 @@ void close (int fd)
 bool chdir (const char *dir)
 {
   struct dir *directory = follow_path (dir, thread_current()->cwd);
-
   if (directory == NULL)
   {
     PANIC ("chdir: Invalid Path");
     return false;
   }
- 
   char *file = parse (dir);
   struct dir_entry e;
   size_t ofs;
   for (ofs = 0; inode_read_at (directory->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e) 
   {
-    if(!strcmp(e.name, file))
+    if(e.in_use && !strcmp(e.name, file))
     {
       thread_current()->cwd = dir_open(inode_open(e.inode_sector));
       return true;
     }
   }
-  
-  PANIC ("chdir: SubDir Not Found");
   return false;
 }
 

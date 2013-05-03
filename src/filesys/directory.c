@@ -200,6 +200,7 @@ dir_remove (struct dir *dir, const char *name)
     goto done;
 
   /* Erase directory entry. */
+  strlcpy (e.name, "", NAME_MAX + 1);
   e.in_use = false;
   if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e) 
     goto done;
