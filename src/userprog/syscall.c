@@ -83,7 +83,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       break;
     case SYS_REMOVE:
-      remove (*(const char **) arg0);
+      f->eax = remove (*(const char **) arg0);
       break;
     case SYS_OPEN:
       if (valid_pointer (arg0))
@@ -143,7 +143,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_INUMBER:
       f->eax = inumber(*(int *) arg0);
-
+      break;
     // Invalid Syscall
     default:
       exit(-1);
@@ -191,7 +191,7 @@ struct dir* find_dir (int fd)
 char* parse (const char *path)
 {
   char *token, *save_ptr;
-  char *temp = palloc_get_page(0);
+  char *temp = calloc (1, sizeof(path));
   strlcpy (temp, path, PGSIZE);
   for(token = strtok_r (temp, "/", &save_ptr); token != NULL;
         token = strtok_r (NULL, "/", &save_ptr))
@@ -204,6 +204,7 @@ char* parse (const char *path)
   
   if (token == NULL)
   {
+    free (temp);
     return path;
   }
   else
@@ -220,6 +221,7 @@ follow_path(const char *path, struct dir *dir)
   {
     dir = dir_open_root();
   }
+  
   char *token, *save_ptr;
   char *temp = palloc_get_page(0);
   strlcpy (temp, path, PGSIZE);
@@ -318,6 +320,16 @@ bool create (const char *path, unsigned initial_size)
   {
     return false;
   }
+  // Check if CWD is open
+  if (thread_current()->cwd->parent_dir != NULL)
+  {
+    if (find_dir(thread_current()->cwd->fd) == NULL)
+    {
+      return false;
+    }
+  }
+  
+  
   struct dir *directory = follow_path (path, thread_current()->cwd);
   char *file = parse (path);
   return filesys_create (file, (off_t) initial_size, directory);
@@ -330,7 +342,6 @@ bool remove (const char *path)
 {
   struct dir *directory = follow_path (path, thread_current()->cwd);
   char *file = parse (path);
-  
   struct dir_entry entry;
   size_t offset;
   for (offset = 0; inode_read_at (directory->inode, &entry, sizeof entry, offset) == sizeof entry;
@@ -350,6 +361,10 @@ bool remove (const char *path)
             return false;
           }
         }
+        if (d->parent_dir == directory)
+        {
+          return false;
+        }
         return dir_remove (directory, file);
       }
       else
@@ -359,7 +374,7 @@ bool remove (const char *path)
     }
   }
   
-  PANIC ("open: File Not Found");
+  //PANIC ("open: File Not Found");
   return false;
 }
 
@@ -384,9 +399,23 @@ int open (const char *path)
     t->fd_count++;
     return d->fd;
   }
-  
+  /*
+  else if (!strcmp(path, "."))
+  {
+    struct dir *d = t->cwd;
+    list_push_back(&t->open_dirs, &d->open_dir);
+    d->fd = t->fd_count;
+    t->fd_count++;
+    return d->fd;
+  }
+  */
   
   struct dir *directory = follow_path (path, t->cwd);
+  // Check if no such directory
+  if (directory == NULL)
+  {
+    return -1;
+  }
   char *file = parse (path);
   struct dir_entry e;
   size_t ofs;
@@ -478,7 +507,7 @@ int write (int fd, const void *buffer, unsigned size)
       struct inode *in = *(int *) &f->inode;
       
       // Check if file needs a new sector
-      if((size + *(int *)&f->pos) > (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE))
+      while((size + *(int *)&f->pos) > (*(unsigned int *)&in->data.sectors * BLOCK_SECTOR_SIZE))
       {
         add_sector(&in->data);
       }
@@ -512,8 +541,7 @@ void seek (int fd, unsigned position)
 // ----
 unsigned tell (int fd) 
 {
-  struct file *f = find_file (fd);
-  return (unsigned) file_tell (&f);
+  return find_file (fd)->pos;
 }
 
 // -----
@@ -525,9 +553,25 @@ void close (int fd)
   struct file *f = find_file (fd);
   if(f == NULL)
   {
+    struct dir* d = find_dir (fd);
+    if (d == NULL)
+    {
+      sema_up(&close_sema);
+      exit(-1);
+      return;
+    }
+    
+    /*
+    if (d->inode->sector == thread_current()->cwd->inode->sector)
+    {
+      sema_up(&close_sema);
+      return;
+    }
+    */
+    
+    list_remove(&d->open_dir);
     sema_up(&close_sema);
-    exit(-1);
-    return;
+    return dir_close (d);
   }
   list_remove(&f->open_file);
   sema_up(&close_sema);
@@ -545,6 +589,7 @@ bool chdir (const char *dir)
     PANIC ("chdir: Invalid Path");
     return false;
   }
+  
   char *file = parse (dir);
   struct dir_entry e;
   size_t ofs;
@@ -556,6 +601,7 @@ bool chdir (const char *dir)
       return true;
     }
   }
+  
   return false;
 }
 
@@ -585,8 +631,7 @@ bool mkdir (const char *dir)
   }
   
   dir_create(sector, 1);
-  return dir_add (directory, parse (dir), sector, true); 
-  return true;
+  return dir_add (directory, parse (dir), sector, true);
 }
 
 // -------
@@ -594,8 +639,8 @@ bool mkdir (const char *dir)
 // -------
 bool readdir (int fd, char *name)
 {
-  PANIC ("readdir not implemented");
-  return false;
+  struct dir* directory = find_dir (fd);
+  return dir_readdir (directory, name);
 }
 
 // -----
@@ -624,6 +669,16 @@ bool isdir (int fd)
 // -------
 int inumber (int fd)
 {
-  PANIC ("inumber not implemented");
-  return -1;
+  struct file *f = find_file (fd);
+  if(f == NULL)
+  {
+    struct dir* d = find_dir (fd);
+    if (d == NULL)
+    {
+      exit(-1);
+      return;
+    }
+    return d->inode->sector;
+  }
+  return f->inode->sector;
 }
