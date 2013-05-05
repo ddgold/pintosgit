@@ -29,7 +29,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
   ASSERT (inode != NULL);
   
   block_sector_t sector_num = (pos / BLOCK_SECTOR_SIZE);
- 
+  
   if (sector_num < 5)
   {
     return inode->data.data_blocks[sector_num];
@@ -70,9 +70,8 @@ byte_to_sector (const struct inode *inode, off_t pos)
 static struct list open_inodes;
 
 
-/* Lock required to modify an inode*/ 
+/* Lock required to modify an inode */ 
 static struct lock inode_lock;
-
 
 /* Initializes the inode module. */
 void
@@ -365,12 +364,10 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     /* Disk sector to read, starting byte offset within sector. */
     block_sector_t sector_idx = byte_to_sector (inode, offset);
     int sector_ofs = offset % BLOCK_SECTOR_SIZE;
-    
     /* Bytes left in inode, bytes left in sector, lesser of the two. */
     off_t inode_left = inode_length (inode) - offset;
     int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
     int min_left = inode_left < sector_left ? inode_left : sector_left;
-
     /* Number of bytes to actually copy out of this sector. */
     int chunk_size = size < min_left ? size : min_left;
     if (chunk_size <= 0)
@@ -404,7 +401,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     bytes_read += chunk_size;
   }
   free (bounce);
-
+  
   return bytes_read;
 }
 
@@ -479,7 +476,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   free (bounce);
 
   block_write (fs_device, inode->sector, &inode->data);
-
+  
   return bytes_written;
 }
 

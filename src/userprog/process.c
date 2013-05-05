@@ -69,7 +69,7 @@ process_execute (const char *file_name)
   
   /* ADDED: Wait for child to create */
   sema_down(&t->sync_sema);
-
+  palloc_free_page(fn_temp);
   return tid;
 }
 
