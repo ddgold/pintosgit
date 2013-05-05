@@ -316,21 +316,20 @@ int wait (pid_t pid)
 // ------
 bool create (const char *path, unsigned initial_size)
 {
+  struct dir *directory = follow_path (path, thread_current()->cwd);
   if (!strcmp(path, ""))
   {
     return false;
   }
-  // Check if CWD is open
-  if (thread_current()->cwd->parent_dir != NULL)
+  // Check if CWD   is open
+  if (thread_current()->cwd->inode->sector != ROOT_DIR_SECTOR)
   {
-    if (find_dir(thread_current()->cwd->fd) == NULL)
+    if (directory->inode->removed)
     {
       return false;
     }
   }
-  
-  
-  struct dir *directory = follow_path (path, thread_current()->cwd);
+    
   char *file = parse (path);
   return filesys_create (file, (off_t) initial_size, directory);
 }
@@ -399,16 +398,18 @@ int open (const char *path)
     t->fd_count++;
     return d->fd;
   }
-  /*
   else if (!strcmp(path, "."))
   {
+    if (thread_current()->cwd->inode->removed)
+    {
+      return -1;
+    }
     struct dir *d = t->cwd;
     list_push_back(&t->open_dirs, &d->open_dir);
     d->fd = t->fd_count;
     t->fd_count++;
     return d->fd;
   }
-  */
   
   struct dir *directory = follow_path (path, t->cwd);
   // Check if no such directory
@@ -467,7 +468,9 @@ int read (int fd, void *buffer, unsigned size)
   }
   else
   {
+    lock_acquire(&write_lock);
     int read = file_read(f, *(int *)buffer, (off_t) size);
+    lock_release(&write_lock);
     return read;
   }
 }
@@ -590,6 +593,7 @@ bool chdir (const char *dir)
     return false;
   }
   
+  
   char *file = parse (dir);
   struct dir_entry e;
   size_t ofs;
@@ -601,7 +605,6 @@ bool chdir (const char *dir)
       return true;
     }
   }
-  
   return false;
 }
 
@@ -631,8 +634,12 @@ bool mkdir (const char *dir)
   }
   
   dir_create(sector, 1);
-  return dir_add (directory, parse (dir), sector, true);
+  bool success = dir_add (directory, parse (dir), sector, true);
+  
+  return success;
 }
+
+
 
 // -------
 // readdir

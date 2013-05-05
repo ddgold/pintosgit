@@ -149,7 +149,6 @@ read due to something intermittent such as low memory. */
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e)
   {
-    //printf ("ofs: %d\n", ofs);
     if (!e.in_use)
       break;
   }

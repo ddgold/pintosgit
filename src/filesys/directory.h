@@ -15,7 +15,6 @@
 
 struct inode;
 
-
 /* A directory. */
 struct dir 
 {
